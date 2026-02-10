@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type checking & linting
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+
+# Database (local dev)
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis
+dump.rdb
+
+# Hugging Face / model cache (optional: remove if using Git LFS for weights)
+.cache/
+app/models/medgemma-4b-it/.cache/
+
+# Large model weights (uncomment if not using Git LFS; keeps repo small)
+# *.safetensors
+
+# Node (if frontend uses npm later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

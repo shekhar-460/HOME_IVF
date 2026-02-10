@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home IVF – Patient Education & Engagement</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <h1 class="logo">Home IVF</h1>
+      <p class="tagline">Patient Education & Engagement</p>
+      <nav class="nav">
+        <a href="#home" class="nav-link active">Home</a>
+        <a href="#chat" class="nav-link">Chat</a>
+        <a href="#fertility-readiness" class="nav-link">Fertility Readiness</a>
+        <a href="#hormonal-predictor" class="nav-link">Hormonal Predictor</a>
+        <a href="#visual-health" class="nav-link">Visual Health</a>
+        <a href="#treatment-pathway" class="nav-link">Treatment Pathway</a>
+        <a href="#home-ivf-eligibility" class="nav-link">Home IVF Eligibility</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Home -->
+    <section id="home" class="panel active">
+      <div class="panel-content">
+        <h2>Welcome</h2>
+        <p>Use the tools above to learn about IVF, check your fertility readiness, get guidance on tests and treatment pathways, or see if Home IVF might be right for you. All tools are for awareness only and do not replace a doctor’s advice.</p>
+        <div class="card-grid">
+          <div class="card">
+            <h3>Chat</h3>
+            <p>Ask questions in English or Hindi. Get answers from our knowledge base and AI.</p>
+            <a href="#chat" class="btn btn-primary">Open Chat</a>
+          </div>
+          <div class="card">
+            <h3>Fertility Readiness</h3>
+            <p>Preliminary risk score and next steps based on age, lifestyle, and history.</p>
+            <a href="#fertility-readiness" class="btn btn-secondary">Calculate</a>
+          </div>
+          <div class="card">
+            <h3>Hormonal Predictor</h3>
+            <p>When to consider AMH, semen analysis, or a specialist visit.</p>
+            <a href="#hormonal-predictor" class="btn btn-secondary">Check</a>
+          </div>
+          <div class="card">
+            <h3>Visual Health</h3>
+            <p>Wellness awareness from sleep, stress, BMI (optional image). Non-diagnostic.</p>
+            <a href="#visual-health" class="btn btn-secondary">Explore</a>
+          </div>
+          <div class="card">
+            <h3>Treatment Pathway</h3>
+            <p>Guidance toward natural conception, IUI, IVF, or fertility preservation.</p>
+            <a href="#treatment-pathway" class="btn btn-secondary">Get guidance</a>
+          </div>
+          <div class="card">
+            <h3>Home IVF Eligibility</h3>
+            <p>Quick check if you may be suitable for Home IVF and prompt to book a consultation.</p>
+            <a href="#home-ivf-eligibility" class="btn btn-secondary">Check eligibility</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Chat -->
+    <section id="chat" class="panel">
+      <div class="panel-content">
+        <h2>Chat</h2>
+        <p class="muted">Ask anything about IVF. Supports English and Hindi.</p>
+        <div class="chat-wrap">
+          <div id="chat-messages" class="chat-messages"></div>
+          <form id="chat-form" class="chat-form">
+            <textarea id="chat-input" name="message" rows="2" placeholder="Type your question..." required></textarea>
+            <button type="submit" class="btn btn-primary">Send</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fertility Readiness -->
+    <section id="fertility-readiness" class="panel">
+      <div class="panel-content">
+        <h2>Fertility Readiness Calculator</h2>
+        <p class="muted">Preliminary risk score and next steps. Not a diagnosis.</p>
+        <form id="form-fertility-readiness" class="form-engagement">
+          <label>Age (years) *</label>
+          <input type="number" name="age" min="18" max="55" value="30" required />
+          <label>Medical history (comma-separated, e.g. PCOS, thyroid)</label>
+          <input type="text" name="medical_history" placeholder="PCOS, endometriosis, …" />
+          <label><input type="checkbox" name="lifestyle_smoking" /> I smoke</label>
+          <label>Alcohol</label>
+          <select name="lifestyle_alcohol">
+            <option value="none">None</option>
+            <option value="occasional">Occasional</option>
+            <option value="regular">Regular</option>
+          </select>
+          <label>Exercise</label>
+          <select name="lifestyle_exercise">
+            <option value="sedentary">Sedentary</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="active">Active</option>
+          </select>
+          <label>BMI (optional)</label>
+          <input type="number" name="bmi" min="15" max="50" step="0.1" placeholder="e.g. 24" />
+          <label>Menstrual pattern</label>
+          <select name="menstrual_pattern">
+            <option value="regular">Regular</option>
+            <option value="irregular">Irregular</option>
+            <option value="absent">Absent</option>
+            <option value="unknown">Unknown</option>
+          </select>
+          <label>Cycle length (days, optional)</label>
+          <input type="number" name="cycle_length_days" min="21" max="45" placeholder="28" />
+          <label>Previous pregnancies</label>
+          <input type="number" name="previous_pregnancies" min="0" value="0" />
+          <label>Live births</label>
+          <input type="number" name="live_births" min="0" value="0" />
+          <label>Miscarriages</label>
+          <input type="number" name="miscarriages" min="0" value="0" />
+          <label>Years trying to conceive (optional)</label>
+          <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 1.5" />
+          <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
+          <button type="submit" class="btn btn-primary">Get result</button>
+        </form>
+        <div id="result-fertility-readiness" class="result-box" hidden></div>
+      </div>
+    </section>
+
+    <!-- Hormonal Predictor -->
+    <section id="hormonal-predictor" class="panel">
+      <div class="panel-content">
+        <h2>Hormonal & Ovarian Health Predictor</h2>
+        <p class="muted">When to consider AMH, semen analysis, or a specialist.</p>
+        <form id="form-hormonal-predictor" class="form-engagement">
+          <label>Age *</label>
+          <input type="number" name="age" min="18" max="55" value="32" required />
+          <label>I am</label>
+          <select name="sex">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="couple">Couple</option>
+          </select>
+          <label><input type="checkbox" name="irregular_cycles" /> Irregular cycles</label>
+          <label>Cycle length (days, optional)</label>
+          <input type="number" name="cycle_length_days" min="21" max="45" placeholder="28" />
+          <label><input type="checkbox" name="symptoms_acne" /> Acne</label>
+          <label><input type="checkbox" name="symptoms_hirsutism" /> Hirsutism</label>
+          <label><input type="checkbox" name="symptoms_heavy_bleeding" /> Heavy bleeding</label>
+          <label><input type="checkbox" name="symptoms_pain" /> Pain</label>
+          <label>Years trying (optional)</label>
+          <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 2" />
+          <label><input type="checkbox" name="previous_tests_amh" /> Already had AMH test</label>
+          <label><input type="checkbox" name="previous_tests_semen" /> Already had semen analysis</label>
+          <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
+          <button type="submit" class="btn btn-primary">Get suggestions</button>
+        </form>
+        <div id="result-hormonal-predictor" class="result-box" hidden></div>
+      </div>
+    </section>
+
+    <!-- Visual Health -->
+    <section id="visual-health" class="panel">
+      <div class="panel-content">
+        <h2>Visual Health (Wellness Awareness)</h2>
+        <p class="muted">Non-diagnostic. Optional image for AI awareness; self-reported inputs always used.</p>
+        <form id="form-visual-health" class="form-engagement">
+          <label>Sleep (hours per night, optional)</label>
+          <input type="number" name="self_reported_sleep_hours" min="0" max="24" step="0.5" placeholder="7" />
+          <label>Stress level</label>
+          <select name="self_reported_stress_level">
+            <option value="">—</option>
+            <option value="low">Low</option>
+            <option value="moderate">Moderate</option>
+            <option value="high">High</option>
+          </select>
+          <label>BMI (optional)</label>
+          <input type="number" name="self_reported_bmi" min="15" max="50" step="0.1" placeholder="e.g. 24" />
+          <label>Optional: upload image (wellness/face, for exploratory AI)</label>
+          <input type="file" name="image" accept="image/*" id="visual-health-image" />
+          <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
+          <button type="submit" class="btn btn-primary">Get recommendations</button>
+        </form>
+        <div id="result-visual-health" class="result-box" hidden></div>
+      </div>
+    </section>
+
+    <!-- Treatment Pathway -->
+    <section id="treatment-pathway" class="panel">
+      <div class="panel-content">
+        <h2>Treatment Pathway Recommender</h2>
+        <p class="muted">Guidance toward natural conception, IUI, IVF, or fertility preservation.</p>
+        <form id="form-treatment-pathway" class="form-engagement">
+          <label>Age *</label>
+          <input type="number" name="age" min="18" max="55" value="34" required />
+          <label>I am</label>
+          <select name="sex">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="couple">Couple</option>
+          </select>
+          <label>Years trying (optional)</label>
+          <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 2" />
+          <label>Known diagnosis (comma-separated)</label>
+          <input type="text" name="known_diagnosis" placeholder="e.g. tubal factor, PCOS" />
+          <label>Previous treatments (comma-separated)</label>
+          <input type="text" name="previous_treatments" placeholder="e.g. IUI, ovulation induction" />
+          <label><input type="checkbox" name="preserving_fertility" /> Interested in fertility preservation</label>
+          <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
+          <button type="submit" class="btn btn-primary">Get pathway</button>
+        </form>
+        <div id="result-treatment-pathway" class="result-box" hidden></div>
+      </div>
+    </section>
+
+    <!-- Home IVF Eligibility -->
+    <section id="home-ivf-eligibility" class="panel">
+      <div class="panel-content">
+        <h2>Home IVF Eligibility Checker</h2>
+        <p class="muted">Quick indication of suitability; book a consultation to confirm.</p>
+        <form id="form-home-ivf-eligibility" class="form-engagement">
+          <label>Female age *</label>
+          <input type="number" name="female_age" min="18" max="50" value="33" required />
+          <label>Male age (optional)</label>
+          <input type="number" name="male_age" min="18" max="60" placeholder="35" />
+          <label>Medical contraindications (comma-separated)</label>
+          <input type="text" name="medical_contraindications" placeholder="e.g. severe OHSS history" />
+          <label><input type="checkbox" name="has_consulted_specialist" /> Have consulted a specialist</label>
+          <label><input type="checkbox" name="ovarian_reserve_known" /> Ovarian reserve (e.g. AMH) known</label>
+          <label><input type="checkbox" name="semen_analysis_known" /> Semen analysis known</label>
+          <label><input type="checkbox" name="stable_relationship_or_single_with_donor" checked /> Stable relationship or single with donor plan</label>
+          <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
+          <button type="submit" class="btn btn-primary">Check eligibility</button>
+        </form>
+        <div id="result-home-ivf-eligibility" class="result-box" hidden></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>For awareness and education only. Not a substitute for medical advice. Consult your doctor.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
