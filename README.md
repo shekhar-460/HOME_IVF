@@ -18,6 +18,7 @@ A **FastAPI** application for multilingual IVF patient education and pre-consult
 - [API Reference](#api-reference)
 - [Engagement Tools](#engagement-tools)
 - [Chat & Knowledge Engine](#chat--knowledge-engine)
+- [Page Translation & Professional Help](#page-translation--professional-help)
 - [Testing](#testing)
 - [Development & Production](#development--production)
 - [License](#license)
@@ -50,7 +51,8 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
 | **Languages** | English (`en`), Hindi (`hi`) with auto-detection (langdetect) |
 | **Chat** | Create conversation, send message, get history, WebSocket; intent classification and escalation |
 | **Knowledge** | Semantic search over JSON FAQs; optional MedGemma-4b-it fallback; IVF-only guardrail |
-| **Translation** | googletrans (3.1.0a0) for en ↔ hi (e.g. MedGemma responses) |
+| **Translation** | googletrans (3.1.0a0): chat en ↔ hi; **page translation** (header dropdown) for 14+ languages |
+| **Professional help** | [HomeIVF](https://homeivf.com/) link and phone in chat suggestions, escalation message, and footer |
 | **Engagement** | Five POST endpoints under `/api/v1/engagement/` (see [Engagement Tools](#engagement-tools)) |
 | **Admin** | Analytics, FAQ/Article CRUD, GPU memory cleanup |
 | **Health** | Root, `/health/`, `/health/ready`, `/health/live` for monitoring |
@@ -74,10 +76,10 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
          ┌─────────────────────────────┼─────────────────────────────┐
          │                             │                             │
          ▼                             ▼                             ▼
- ┌────────────────┐           ┌─────────────────┐           ┌──────────────────┐
+ ┌────────────────┐           ┌─────────────────┐           ┌────────────────────┐
  │  /health/*     │           │ /api/v1/chat    │           │ /api/v1/engagement │
  │  health.py     │           │ chat.py         │           │ engagement.py      │
- └────────────────┘           └─────────────────┘           └──────────────────┘
+ └────────────────┘           └─────────────────┘           └────────────────────┘
                                      │                             │
                                      ▼                             ▼
                          ┌────────────────────┐          ┌──────────────────────┐
@@ -103,11 +105,11 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
            │                          │                       │
            │                          │                       │
            ▼                          │                       ▼
-  ┌──────────────────────┐     ┌──────────────────┐   ┌────────────────────┐
-  │PostgreSQL            │     │ Redis cache      │   │ EscalationManager  │
-  │conversations, msgs,  │◄──► │ FAQ / MedGemma   │   │ + outbound systems │
-  │faqs, articles,       │     │ responses        │   │ (future integration│
-  │escalations           │     └──────────────────┘   └────────────────────┘
+  ┌──────────────────────┐     ┌──────────────────┐   ┌─────────────────────┐
+  │PostgreSQL            │     │ Redis cache      │   │ EscalationManager   │
+  │conversations, msgs,  │◄──► │ FAQ / MedGemma   │   │ + outbound systems  │
+  │faqs, articles,       │     │ responses        │   │ (future integration)│
+  │escalations           │     └──────────────────┘   └─────────────────────┘
   └──────────────────────┘
 
 Chat flow (high level):
@@ -138,6 +140,7 @@ HOME IVF/
 │   │   ├── health.py              # GET /health/, /health/ready, /health/live
 │   │   ├── chat.py                # POST /api/v1/chat/message, /conversation; GET /conversation/{id}; POST /escalate; WS /ws/{id}
 │   │   ├── engagement.py          # POST /api/v1/engagement/* (5 tools)
+│   │   ├── translate.py           # GET /api/v1/translate/languages; POST /api/v1/translate (page translation)
 │   │   └── admin.py               # GET /api/v1/admin/analytics; POST /api/v1/admin/faq, /article; POST /api/v1/admin/cleanup-gpu
 │   ├── database/
 │   │   ├── connection.py         # Engine, SessionLocal, get_db, init_db
@@ -158,7 +161,8 @@ HOME IVF/
 │   │   └── proactive_suggestions.py
 │   └── utils/
 │       ├── language_detector.py   # langdetect
-│       └── translator.py         # googletrans (en/hi)
+│       └── translator.py         # googletrans (en/hi + page languages)
+├── frontend/                     # Static UI: index.html, app.js, styles.css (chat, tools, translate dropdown)
 ├── knowledge_base/               # Optional: sample_faqs.json (FAQ source if present)
 ├── tests/
 │   ├── conftest.py               # Fixtures, engagement dependency override
@@ -167,8 +171,10 @@ HOME IVF/
 │   ├── test_engagement_service.py
 │   └── test_schemas.py
 ├── requirements.txt              # App dependencies (googletrans==3.1.0a0)
+├── start.sh                      # Check env (Python, venv, deps, optional DB/Redis) and run server
 ├── pytest.ini
-├── .env                          # Optional
+├── .env                          # Optional (HOST, PORT, DATABASE_URL, etc.)
+├── .gitignore                    # Python, venv, .env, tests, IDE, OS, logs, model cache
 └── README.md
 ```
 
@@ -235,16 +241,26 @@ Settings are defined in `app/config.py` and loaded from the environment or `.env
 | `MEDGEMMA_MODEL_PATH` | `app/models/medgemma-4b-it` | Local MedGemma path |
 | `USE_LOCAL_MEDGEMMA` | `True` | Use local model; if False, load from Hugging Face |
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | FAQ embeddings |
-| `SUPPORTED_LANGUAGES` | `["en", "hi"]` | Supported language codes |
-| `HOMEIVF_WEBSITE_URL` | `https://homeivf.com/` | HomeIVF link |
+| `SUPPORTED_LANGUAGES` | `["en", "hi"]` | Chat language codes |
+| `HOMEIVF_WEBSITE_URL` | `https://homeivf.com/` | HomeIVF professional help link |
+| `HOMEIVF_PHONE` | `+91-9958885250` | HomeIVF contact number (escalation message, etc.) |
 
 ---
 
 ## Running the Application
 
+**Option 1 – One-command script (recommended)**  
+From the project root, run `start.sh`. It checks Python 3.10+, creates/uses `.venv`, installs or updates dependencies from `requirements.txt`, optionally loads `.env`, and starts the server. You can run it from any directory; it changes into the project root automatically.
+
+```bash
+./start.sh
+```
+
+**Option 2 – Manual**  
 From the project root with the virtualenv activated:
 
 ```bash
+source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -270,7 +286,7 @@ A static frontend is provided in the `frontend/` folder. It uses only HTML, CSS,
    <script src="app.js"></script>
    ```
 
-The frontend includes: **Home** (overview and links), **Chat** (send messages, optional image), and the five **engagement** tools (Fertility Readiness, Hormonal Predictor, Visual Health, Treatment Pathway, Home IVF Eligibility) with forms and result display.
+The frontend includes: **Home** (overview and links), **Chat** (send messages, optional image, suggested actions with professional-help link), a **Translate** dropdown in the header (page translation into 14+ languages via googletrans), and the five **engagement** tools (Fertility Readiness, Hormonal Predictor, Visual Health, Treatment Pathway, Home IVF Eligibility) with forms and result display. The footer includes a link to **HomeIVF** (https://homeivf.com/) and the contact number for professional help.
 
 ---
 
@@ -316,6 +332,13 @@ The frontend includes: **Home** (overview and links), **Chat** (send messages, o
 | POST | `/treatment-pathway` | Treatment pathway recommender |
 | POST | `/home-ivf-eligibility` | Home IVF eligibility checker |
 
+### Translate (`/api/v1`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/translate/languages` | List language codes and names for page translation |
+| POST | `/translate` | Batch translate strings (body: `texts`, `dest`, optional `src`) for UI translation |
+
 ---
 
 ## Engagement Tools
@@ -345,6 +368,24 @@ MedGemma is a **vision–language model**. The app supports **image + text** inp
 2. **Visual Health** – `POST /api/v1/engagement/visual-health` accepts optional **`image_base64`**. When `use_ai_insight=true` and an image is sent, MedGemma returns a short **non-diagnostic** wellness awareness snippet based on the image. Responses are for general awareness only.
 
 Images are decoded with Pillow (PIL) and passed to the processor as PIL Images; the rest of the pipeline is unchanged. Multimodal responses are not cached.
+
+---
+
+## Page Translation & Professional Help
+
+### Page translation (googletrans)
+
+The frontend header includes a **Translate** dropdown. Selecting a language sends the visible static text (headings, nav, cards, form labels, buttons, footer disclaimer) to the backend; the app uses **googletrans (3.1.0a0)** to translate and returns the strings. The UI replaces the text in place. Choosing **English** or **—** restores the original copy. Supported page languages include English, Hindi, Spanish, French, German, Arabic, Bengali, Chinese (Simplified), Tamil, Telugu, Marathi, Gujarati, Kannada, and Malayalam. API: **GET /api/v1/translate/languages** (list) and **POST /api/v1/translate** (body: `{ "texts": ["..."], "dest": "hi", "src": "en" }`).
+
+### Professional help (HomeIVF)
+
+The [HomeIVF](https://homeivf.com/) site and contact number are wired in for professional fertility care:
+
+- **Chat:** Suggested actions include “Get professional help (HomeIVF)” (and Hindi variant) linking to `HOMEIVF_WEBSITE_URL`.
+- **Escalation:** When a conversation is escalated to a counsellor, the message includes the HomeIVF URL and `HOMEIVF_PHONE` (default +91-9958885250).
+- **Frontend:** Footer shows “For professional help: HomeIVF · +91-9958885250” with links. Chat response links are rendered as buttons when the API returns `suggested_actions` with type `link`.
+
+Configure via `HOMEIVF_WEBSITE_URL` and `HOMEIVF_PHONE` in `.env` or environment.
 
 ---
 

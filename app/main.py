@@ -9,7 +9,7 @@ import logging
 import uvicorn
 
 from app.config import settings
-from app.api.routes import chat, health, admin, engagement
+from app.api.routes import chat, health, admin, engagement, translate
 from app.database.connection import init_db
 
 # Configure logging
@@ -144,6 +144,7 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 app.include_router(engagement.router, prefix="/api/v1/engagement", tags=["engagement"])
+app.include_router(translate.router, prefix="/api/v1", tags=["translate"])
 
 
 @app.on_event("startup")

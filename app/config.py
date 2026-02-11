@@ -132,11 +132,15 @@ class Settings(BaseSettings):
     # Performance Optimizations
     PRE_COMPUTE_EMBEDDINGS: bool = Field(default=False, env="PRE_COMPUTE_EMBEDDINGS")  # Pre-compute FAQ embeddings on startup
     
-    # External Resources
+    # External Resources (professional help)
     HOMEIVF_WEBSITE_URL: str = Field(
         default="https://homeivf.com/",
         env="HOMEIVF_WEBSITE_URL"
-    )  # HomeIVF website link
+    )  # HomeIVF website – book consultations, expert care
+    HOMEIVF_PHONE: str = Field(
+        default="+91-9958885250",
+        env="HOMEIVF_PHONE"
+    )  # HomeIVF contact number
     
     class Config:
         env_file = ".env"

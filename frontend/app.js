@@ -64,16 +64,76 @@
   if (window.location.hash) setActivePanel(window.location.hash.slice(1));
   else setActivePanel("home");
 
+  // --- Page translation (googletrans) ---
+  var translateSelect = document.getElementById("translate-select");
+  var TRANSLATE_SELECTOR = ".header .logo, .header .tagline, .header .nav-link, " +
+    ".panel-content h2, .panel-content > p, .panel-content > .muted, .card h3, .card p, .card a.btn, " +
+    ".form-engagement label, .form-engagement button, .footer > p:not(.footer-professional)";
+  var translationOriginals = [];
+
+  function collectTranslatable() {
+    var nodes = document.querySelectorAll(TRANSLATE_SELECTOR);
+    translationOriginals = [];
+    nodes.forEach(function (el) {
+      if (el.querySelector("input, select, textarea")) return;
+      var text = (el.textContent || "").trim();
+      if (text) translationOriginals.push({ el: el, text: text });
+    });
+  }
+
+  function restoreOriginals() {
+    translationOriginals.forEach(function (item) { item.el.textContent = item.text; });
+  }
+
+  function applyTranslations(translations) {
+    if (translations.length !== translationOriginals.length) return;
+    translationOriginals.forEach(function (item, i) { item.el.textContent = translations[i] || item.text; });
+  }
+
+  if (translateSelect) {
+    collectTranslatable();
+    translateSelect.addEventListener("change", function () {
+      var dest = (translateSelect.value || "").trim();
+      if (dest === "" || dest === "en") {
+        restoreOriginals();
+        return;
+      }
+      var texts = translationOriginals.map(function (item) { return item.text; });
+      if (!texts.length) return;
+      translateSelect.disabled = true;
+      api("POST", "/api/v1/translate", { texts: texts, dest: dest, src: "en" })
+        .then(function (r) {
+          applyTranslations(r.translations || []);
+        })
+        .catch(function (err) {
+          alert("Translation failed: " + err.message);
+        })
+        .finally(function () { translateSelect.disabled = false; });
+    });
+  }
+
   // --- Chat ---
   var chatMessages = document.getElementById("chat-messages");
   var chatForm = document.getElementById("chat-form");
   var chatInput = document.getElementById("chat-input");
   var conversationId = null;
 
-  function appendChat(role, text) {
+  function appendChat(role, text, suggestedActions) {
     var div = document.createElement("div");
     div.className = "chat-message " + role;
-    div.innerHTML = "<div class=\"role\">" + (role === "user" ? "You" : "Assistant") + "</div><div class=\"text\">" + escapeHtml(text) + "</div>";
+    var html = "<div class=\"role\">" + (role === "user" ? "You" : "Assistant") + "</div><div class=\"text\">" + escapeHtml(text) + "</div>";
+    if (suggestedActions && suggestedActions.length) {
+      html += "<div class=\"suggested-actions\">";
+      suggestedActions.forEach(function (a) {
+        if (a.type === "link" && a.url) {
+          html += "<a href=\"" + escapeHtml(a.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"action-link\">" + escapeHtml(a.label) + "</a>";
+        } else if (a.label) {
+          html += "<span class=\"action-label\">" + escapeHtml(a.label) + "</span>";
+        }
+      });
+      html += "</div>";
+    }
+    div.innerHTML = html;
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
@@ -99,8 +159,10 @@
     api("POST", "/api/v1/chat/message", body)
       .then(function (res) {
         if (res.conversation_id) conversationId = res.conversation_id;
-        var text = (res.response && res.response.text) || (res.response && res.response.message) || res.message || (typeof res.response === "string" ? res.response : JSON.stringify(res));
-        appendChat("assistant", text);
+        var resp = res.response;
+        var text = (resp && resp.text) || (resp && resp.message) || res.message || (typeof resp === "string" ? resp : JSON.stringify(res));
+        var suggestedActions = (resp && resp.suggested_actions) || [];
+        appendChat("assistant", text, suggestedActions);
       })
       .catch(function (err) {
         appendChat("assistant", "Error: " + err.message);

@@ -316,18 +316,18 @@ class ResponseGenerator:
         return templates.get(template_key, templates.get('no_results', ''))
     
     def _get_homeivf_link_action(self, language: str) -> SuggestedAction:
-        """Get HomeIVF website link action"""
+        """Get HomeIVF professional help link action (https://homeivf.com/)"""
         if language == 'hi':
             return SuggestedAction(
                 type='link',
-                label='HomeIVF वेबसाइट देखें',
+                label='पेशेवर सहायता – HomeIVF',
                 url=settings.HOMEIVF_WEBSITE_URL,
                 action='visit_homeivf'
             )
         else:
             return SuggestedAction(
                 type='link',
-                label='Visit HomeIVF Website',
+                label='Get professional help (HomeIVF)',
                 url=settings.HOMEIVF_WEBSITE_URL,
                 action='visit_homeivf'
             )

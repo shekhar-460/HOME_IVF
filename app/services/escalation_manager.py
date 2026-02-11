@@ -169,11 +169,18 @@ class EscalationManager:
         )
         
         wait_time = self._estimate_wait_time(escalation_data.get('urgency', 'medium'))
-        
+        homeivf_url = getattr(settings, 'HOMEIVF_WEBSITE_URL', 'https://homeivf.com/')
+        homeivf_phone = getattr(settings, 'HOMEIVF_PHONE', '+91-9958885250')
+        message = (
+            f"I'm connecting you with a counsellor. Estimated wait time: {wait_time} minutes. "
+            f"For immediate professional help, visit {homeivf_url} or call {homeivf_phone}."
+        )
         return {
             'escalation_id': str(escalation.escalation_id),
             'status': escalation.status,
             'urgency': escalation.urgency,
             'estimated_wait_time': wait_time,
-            'message': f"I'm connecting you with a counsellor. Estimated wait time: {wait_time} minutes."
+            'message': message,
+            'professional_help_url': homeivf_url,
+            'professional_help_phone': homeivf_phone,
         }
