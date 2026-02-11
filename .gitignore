@@ -78,9 +78,9 @@ temp/
 # Redis
 dump.rdb
 
-# Hugging Face / model cache (optional: remove if using Git LFS for weights)
+# Hugging Face / model cache — MedGemma weights are >2GB (GitHub LFS limit); download at runtime
 .cache/
-app/models/medgemma-4b-it/.cache/
+app/models/medgemma-4b-it/
 
 # Large model weights (uncomment if not using Git LFS; keeps repo small)
 # *.safetensors
