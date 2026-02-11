@@ -47,35 +47,47 @@ Tables are created automatically on first run.
 
 ---
 
-## 3. Run the backend
+## 3. Run backend + frontend (recommended)
+
+From the project root:
+
+```bash
+./start.sh
+```
+
+This script checks Python 3.10+, creates/uses `.venv`, installs dependencies if needed, loads `.env` if present, starts the **backend** on **http://0.0.0.0:8000**, then the **frontend** on **http://0.0.0.0:3000**. Press **Ctrl+C** to stop both.
+
+- **Local:** http://localhost:3000 (frontend), http://localhost:8000 (API, docs at /docs)
+- **From another device:** http://*your-machine-ip*:3000 (frontend); the UI will call http://*your-machine-ip*:8000 for the API. Use **http://** (not https).
+
+---
+
+## 4. Run manually (two terminals)
+
+**Terminal 1 – backend:**
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- **API:** http://localhost:8000  
-- **Swagger:** http://localhost:8000/docs  
-- **ReDoc:** http://localhost:8000/redoc  
-
----
-
-## 4. Run the frontend (optional)
-
-In a **second terminal**, from project root:
+**Terminal 2 – frontend:**
 
 ```bash
-cd frontend && python3 -m http.server 3000
+cd frontend && python3 -m http.server 3000 --bind 0.0.0.0
 ```
 
-Open **http://localhost:3000** in your browser. The UI talks to the API at `http://localhost:8000` by default.
+Open **http://localhost:3000** (or http://*your-ip*:3000). The frontend uses **http://*current-host*:8000** for the API by default.
 
 ---
 
-## Optional: Reduce dependencies for first run
+## Optional: Reduce dependencies / custom API
 
-- **No Redis:** App will run; caching is skipped if Redis is unavailable (check logs).
-- **No MedGemma:** Set `USE_MEDGEMMA=false` (env or `.env`) to disable AI fallback and engagement insights; chat and engagement tools still work with rule-based logic.
-- **Different API port:** e.g. `uvicorn app.main:app --port 8006`. If using the frontend, set `window.API_BASE = "http://localhost:8006"` in `frontend/index.html` before loading `app.js`.
+- **No Redis:** App runs; caching is skipped if Redis is unavailable.
+- **No MedGemma:** Set `USE_MEDGEMMA=false` in `.env` to disable AI fallback; chat and engagement tools still work.
+- **Different API port:** Run backend on another port (e.g. 8006). In `frontend/index.html`, before `app.js`, add:  
+  `<script>window.API_PORT = "8006";</script>`  
+  or  
+  `<script>window.API_BASE = "http://localhost:8006";</script>`
 
 ---
 
@@ -92,4 +104,4 @@ pytest tests/ -v
 
 - Full setup and configuration: [README.md](README.md)  
 - API and engagement tools: [README.md#api-reference](README.md#api-reference)  
-- Frontend custom API URL: [README.md#frontend-html--css--js](README.md#frontend-html--css--js)
+- Page translation and CORS: [README.md#page-translation--professional-help](README.md#page-translation--professional-help)

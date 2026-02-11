@@ -88,38 +88,38 @@ app = FastAPI(
     },
 )
 
-# CORS middleware - Configure for network access
-# Allow all common development origins including network IPs
-cors_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:5173",
-    "http://192.168.15.184:3000",
-    "http://192.168.15.184:3001",
-    "http://192.168.15.184:5173",
-]
-
-# In development mode, be more permissive for network access
-# Allow any origin from the local network (192.168.x.x)
-if settings.DEBUG:
-    import re
-    # Add regex pattern to allow any IP in the 192.168.x.x range with any port
-    cors_origins.append(re.compile(r"^http://192\.168\.\d+\.\d+:\d+$"))
-    # Also allow 10.x.x.x and 172.16-31.x.x (common private network ranges)
-    cors_origins.append(re.compile(r"^http://10\.\d+\.\d+\.\d+:\d+$"))
-    cors_origins.append(re.compile(r"^http://172\.(1[6-9]|2[0-9]|3[01])\.\d+\.\d+:\d+$"))
-
+# CORS middleware - Allow frontend from any origin (different devices, ports 3000/4200, etc.)
+# Using allow_origins=["*"] with allow_credentials=False so the browser always accepts the
+# response (our frontend does not send cookies to the API).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def ensure_cors_headers(request: Request, call_next):
+    """Ensure every response has CORS headers so frontend from any origin works."""
+    if request.method == "OPTIONS":
+        return JSONResponse(
+            content={},
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 # Middleware to handle malformed requests gracefully

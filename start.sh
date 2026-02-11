@@ -88,11 +88,39 @@ check_port "localhost" "6379" "Redis" || true
 # --- Port from env or default ---
 PORT="${PORT:-8000}"
 HOST="${HOST:-0.0.0.0}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+
+# --- Cleanup: kill backend when script exits (e.g. Ctrl+C) ---
+BACKEND_PID=""
+cleanup() {
+  if [[ -n "$BACKEND_PID" ]] && kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo ""
+    echo "Stopping backend (PID $BACKEND_PID) ..."
+    kill "$BACKEND_PID" 2>/dev/null || true
+    wait "$BACKEND_PID" 2>/dev/null || true
+  fi
+  exit 0
+}
+trap cleanup INT TERM
 
 echo "=============================================="
-echo "  Starting server at http://${HOST}:${PORT}"
+echo "  Backend:  http://${HOST}:${PORT}"
 echo "  API docs: http://localhost:${PORT}/docs"
-echo "  Press Ctrl+C to stop"
+echo "  Frontend: http://localhost:${FRONTEND_PORT} (also http://0.0.0.0:${FRONTEND_PORT})"
+echo "  Press Ctrl+C to stop both"
 echo "=============================================="
 
-exec python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT" --reload
+# --- Start backend in background ---
+python3 -m uvicorn app.main:app --host "$HOST" --port "$PORT" --reload &
+BACKEND_PID=$!
+sleep 2
+if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+  echo "ERROR: Backend failed to start."
+  exit 1
+fi
+
+# --- Start frontend (foreground) on 0.0.0.0 so it's reachable from other devices ---
+cd "$PROJECT_ROOT/frontend"
+echo "[OK] Serving frontend at http://localhost:${FRONTEND_PORT} and http://$(hostname -I 2>/dev/null | awk '{print $1}'):${FRONTEND_PORT}"
+python3 -m http.server "$FRONTEND_PORT" --bind 0.0.0.0
+cleanup

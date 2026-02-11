@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Home IVF – Patient Education & Engagement</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c45c3e' width='32' height='32' rx='4'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='white' font-family='sans-serif'%3EH%3C/text%3E%3C/svg%3E" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,22 +26,24 @@
         <div class="nav-translate">
           <label for="translate-select" class="translate-label">Translate</label>
           <select id="translate-select" class="translate-select" title="Translate page">
-            <option value="">—</option>
-            <option value="en">English</option>
+            <option value="en" selected>English</option>
             <option value="hi">हिन्दी</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-            <option value="de">Deutsch</option>
-            <option value="ar">العربية</option>
             <option value="bn">বাংলা</option>
-            <option value="zh-cn">中文</option>
             <option value="ta">தமிழ்</option>
             <option value="te">తెలుగు</option>
             <option value="mr">मराठी</option>
             <option value="gu">ગુજરાતી</option>
             <option value="kn">ಕನ್ನಡ</option>
             <option value="ml">മലയാളം</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="ar">العربية</option>
+            <option value="zh-cn">中文</option>
           </select>
+          <span id="translate-loading" class="translate-loading" aria-hidden="true" aria-label="Translating">
+  <span class="translate-spinner"></span>
+</span>
         </div>
       </nav>
     </div>
@@ -262,10 +265,15 @@
   </main>
 
   <footer class="footer">
-    <p>For awareness and education only. Not a substitute for medical advice. Consult your doctor.</p>
-    <p class="footer-professional">For professional help: <a href="https://homeivf.com/" target="_blank" rel="noopener noreferrer">HomeIVF</a> · <a href="tel:+919958885250">+91-9958885250</a></p>
+    <div class="footer-inner">
+      <p>For awareness and education only. Not a substitute for medical advice. Consult your doctor.</p>
+      <p class="footer-professional">For professional help: <a href="https://homeivf.com/" target="_blank" rel="noopener noreferrer">HomeIVF</a> · <a href="tel:+919958885250">+91-9958885250</a></p>
+    </div>
   </footer>
 
+  <!-- Optional: set API base when frontend is on a different host/port. Examples:
+       <script>window.API_BASE = "http://192.168.15.18:8000";</script>
+       <script>window.API_PORT = "8000";</script> (used if API_BASE not set) -->
   <script src="app.js"></script>
 </body>
 </html>

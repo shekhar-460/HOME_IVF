@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Use of AI in this project – Home IVF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation Sidebar -->
+    <div class="no-print fixed left-0 top-0 h-full w-64 bg-gray-900 text-white overflow-y-auto z-50">
+        <div class="p-6">
+            <h1 class="text-xl font-bold mb-6 text-primary-400">Home IVF – AI</h1>
+            <nav class="space-y-2">
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase mb-2">Contents</h2>
+                    <a href="#overview" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Overview</a>
+                    <a href="#chat-pipeline" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Chat pipeline</a>
+                    <a href="#language-detection" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.1 Language detection</a>
+                    <a href="#intent-classification" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.2 Intent classification</a>
+                    <a href="#ivf-guardrail" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.3 IVF guardrail</a>
+                    <a href="#semantic-faq" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.4 Semantic FAQ search</a>
+                    <a href="#medgemma-fallback" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.5 MedGemma fallback</a>
+                    <a href="#translation" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.6 Translation</a>
+                    <a href="#engagement-tools" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Engagement tools</a>
+                    <a href="#multimodal" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Multimodal</a>
+                    <a href="#caching" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Caching & performance</a>
+                    <a href="#summary-table" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Summary table</a>
+                    <a href="#disclaimers" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Disclaimers</a>
+                </div>
+                <div class="mb-4">
+                    <h2 class="text-sm font-semibold text-gray-400 uppercase mb-2">Links</h2>
+                    <a href="frontend/index.html" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">← Back to app</a>
+                    <a href="README.md" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">README</a>
+                    <a href="QUICKSTART.md" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">QUICKSTART</a>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 p-8">
+        <!-- Header -->
+        <div class="mb-12">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Use of AI in this project</h1>
+            <p class="text-xl text-gray-600">AI Engagement Tools (Home IVF) – where and how AI is used.</p>
+        </div>
+
+        <p class="text-lg text-gray-700 mb-6">
+            This document describes the role of <strong>artificial intelligence (AI) and machine learning (ML)</strong> in the Home IVF patient education and engagement application. The system combines <strong>rule-based logic</strong>, <strong>semantic search</strong>, <strong>language models (MedGemma)</strong>, and <strong>translation</strong> to support multilingual, IVF-focused conversations and tools.
+        </p>
+
+        <!-- Overview -->
+        <section id="overview" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">1. Overview</h2>
+            <p class="text-gray-700 mb-4">AI is used in four main areas:</p>
+            <ul class="list-disc list-inside space-y-2 text-gray-700 mb-6">
+                <li><strong>Chat</strong> – intent classification, semantic FAQ search, optional MedGemma fallback for unanswered questions, and an IVF-only guardrail.</li>
+                <li><strong>Language</strong> – automatic language detection (Hindi/English), translation for chat and page UI (googletrans).</li>
+                <li><strong>Engagement tools</strong> – rule-based calculators with optional short MedGemma “insights” (fertility readiness, hormonal predictor, visual wellness, treatment pathway, Home IVF eligibility).</li>
+                <li><strong>Safety and scope</strong> – guardrail so that queries and answers stay IVF-related; disclaimers that outputs are for awareness only, not medical diagnosis.</li>
+            </ul>
+        </section>
+
+        <!-- Chat pipeline -->
+        <section id="chat-pipeline" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">2. Chat pipeline (conversational AI)</h2>
+            <p class="text-gray-700 mb-6">When a user sends a message in the chat, the following AI/ML components are used in sequence.</p>
+
+            <div id="language-detection" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.1 Language detection</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-sm">langdetect</code> (via <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/utils/language_detector.py</span>).</p>
+                <p class="text-gray-700">Detects whether the message is in <strong>English</strong> or <strong>Hindi</strong> so the system can respond in the same language and use language-specific patterns where needed.</p>
+            </div>
+
+            <div id="intent-classification" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.2 Intent classification</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/intent_classifier.py</span> (pattern-based with optional translation).</p>
+                <p class="text-gray-700 mb-3">Classifies the user’s intent using <strong>regex patterns</strong> in English and Hindi, e.g.:</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 mb-3">
+                    <li><code class="bg-gray-200 px-1 rounded text-sm">faq_general</code>, <code class="bg-gray-200 px-1 rounded text-sm">faq_process</code>, <code class="bg-gray-200 px-1 rounded text-sm">faq_medication</code>, <code class="bg-gray-200 px-1 rounded text-sm">faq_side_effects</code></li>
+                    <li><code class="bg-gray-200 px-1 rounded text-sm">appointment_schedule</code>, <code class="bg-gray-200 px-1 rounded text-sm">appointment_reschedule</code></li>
+                    <li><code class="bg-gray-200 px-1 rounded text-sm">escalation_urgent</code>, <code class="bg-gray-200 px-1 rounded text-sm">escalation_complex</code></li>
+                    <li><code class="bg-gray-200 px-1 rounded text-sm">greeting</code>, <code class="bg-gray-200 px-1 rounded text-sm">goodbye</code></li>
+                </ul>
+                <p class="text-gray-700">For Hindi messages, the text can be translated to English first so that the same patterns apply; the final response is still in the user’s language. This drives routing (e.g. to FAQ search vs escalation).</p>
+            </div>
+
+            <div id="ivf-guardrail" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.3 IVF guardrail (safety)</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/ivf_guardrail.py</span>.</p>
+                <p class="text-gray-700">Before answering, the system checks that the query is <strong>IVF-related</strong> using keyword lists (English and Hindi). If the query is off-topic (e.g. general medicine, unrelated topics), the bot returns a polite message that it can only help with IVF and fertility, and suggests the HomeIVF website or professional help. This keeps the bot within its intended scope.</p>
+            </div>
+
+            <div id="semantic-faq" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.4 Semantic FAQ search (embeddings)</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/knowledge_engine.py</span> with <strong>sentence-transformers</strong>.</p>
+                <p class="text-gray-700 mb-3">Uses the model <code class="bg-gray-200 px-1 rounded text-sm">paraphrase-multilingual-MiniLM-L12-v2</code> to compute <strong>embeddings</strong> of:</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 mb-3">
+                    <li>FAQ questions (and answers) from <code class="bg-gray-200 px-1 rounded text-sm">knowledge_base/sample_faqs.json</code> (and DB if used)</li>
+                    <li>The user’s message</li>
+                </ul>
+                <p class="text-gray-700">Similarity between the user message and FAQ entries is computed (e.g. cosine similarity). The best-matching FAQ(s) are returned if the score is above a threshold. This allows <strong>semantic</strong> matching (meaning, not just keywords) in English and Hindi.</p>
+            </div>
+
+            <div id="medgemma-fallback" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.5 MedGemma fallback (generative AI)</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/knowledge_engine.py</span> – <strong>MedGemma-4b-it</strong> (vision–language model).</p>
+                <p class="text-gray-700 mb-3">If there is no good FAQ match (or low confidence), the system can call the <strong>MedGemma</strong> model (when <code class="bg-gray-200 px-1 rounded text-sm">USE_MEDGEMMA=true</code>) to generate an IVF-related answer. MedGemma is a medical vision–language model; here it is used for <strong>text-only</strong> Q&amp;A or <strong>image + text</strong> (e.g. user sends a scan or photo with a question).</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 mb-3">
+                    <li>Input: user message, optional image (base64), language.</li>
+                    <li>Output: short, formatted answer (e.g. 150-word limit); can be translated to Hindi via googletrans if needed.</li>
+                </ul>
+                <p class="text-gray-700">Responses are still filtered by the <strong>IVF guardrail</strong> so that only IVF-relevant content is shown. The model is loaded on first use and can be disabled with <code class="bg-gray-200 px-1 rounded text-sm">USE_MEDGEMMA=false</code>.</p>
+            </div>
+
+            <div id="translation" class="bg-gray-100 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">2.6 Translation (chat and UI)</h3>
+                <p class="text-gray-700 mb-2"><strong>Component:</strong> <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/utils/translator.py</span> – <strong>googletrans (3.1.0a0)</strong>.</p>
+                <p class="text-gray-700 mb-3">Used to:</p>
+                <ul class="list-disc list-inside space-y-1 text-gray-700 mb-3">
+                    <li>Translate MedGemma (or other) responses into Hindi when the user writes in Hindi.</li>
+                    <li>Translate action labels (e.g. “Connect with Counsellor”) for suggested buttons.</li>
+                </ul>
+                <p class="text-gray-700">For the <strong>page translation</strong> feature (Translate dropdown in the header), the same service is used to translate static UI text (headings, labels, buttons) into 14+ languages (Indian languages first, then others).</p>
+            </div>
+        </section>
+
+        <!-- Engagement tools -->
+        <section id="engagement-tools" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">3. Engagement tools (rule-based + optional AI insight)</h2>
+            <p class="text-gray-700 mb-4">The five engagement APIs (fertility readiness, hormonal predictor, visual wellness, treatment pathway, Home IVF eligibility) are implemented as <strong>rule-based</strong> logic in <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/engagement_service.py</span>. They take structured inputs (age, medical history, lifestyle, etc.) and return scores, recommendations, and next steps.</p>
+            <p class="text-gray-700">When <code class="bg-gray-200 px-1 rounded text-sm">use_ai_insight=true</code> in the request, the service can add a short <strong>MedGemma-generated</strong> “insight” or explanation (same model as in chat). This is optional and does not replace the rule-based result; it only adds a brief natural-language comment. For <strong>Visual Health</strong>, an optional image can be sent and MedGemma can use it (non-diagnostic wellness awareness only).</p>
+        </section>
+
+        <!-- Multimodal -->
+        <section id="multimodal" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">4. Multimodal (image + text)</h2>
+            <p class="text-gray-700 mb-4">MedGemma supports <strong>image + text</strong> input. In this project it is used in:</p>
+            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                <li><strong>Chat:</strong> <code class="bg-gray-200 px-1 rounded text-sm">POST /api/v1/chat/message</code> accepts optional <code class="bg-gray-200 px-1 rounded text-sm">image_base64</code>. The image and the text question are sent to MedGemma; the answer is still constrained by the IVF guardrail and formatting.</li>
+                <li><strong>Visual Health:</strong> <code class="bg-gray-200 px-1 rounded text-sm">POST /api/v1/engagement/visual-health</code> can receive an optional image; when <code class="bg-gray-200 px-1 rounded text-sm">use_ai_insight=true</code>, MedGemma returns a short non-diagnostic wellness comment. Disclaimers state that this is for awareness only, not diagnosis.</li>
+            </ul>
+        </section>
+
+        <!-- Caching -->
+        <section id="caching" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">5. Caching and performance</h2>
+            <ul class="list-disc list-inside space-y-2 text-gray-700">
+                <li>FAQ embeddings can be cached (e.g. in Redis) to avoid recomputing.</li>
+                <li>MedGemma responses can be cached by query (and language) when no image is used, to reduce repeat calls.</li>
+                <li>The MedGemma model is loaded <strong>lazily</strong> (on first use) and can be unloaded or cleaned up (e.g. GPU memory) via admin or shutdown logic.</li>
+            </ul>
+        </section>
+
+        <!-- Summary table -->
+        <section id="summary-table" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">6. Summary table</h2>
+            <div class="bg-gray-100 p-6 rounded-lg overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 text-left">
+                            <th class="py-3 px-4 font-semibold text-gray-800">Area</th>
+                            <th class="py-3 px-4 font-semibold text-gray-800">AI/ML component</th>
+                            <th class="py-3 px-4 font-semibold text-gray-800">Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-700">
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – language</td><td class="py-3 px-4">langdetect</td><td class="py-3 px-4">Detect English vs Hindi</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – intent</td><td class="py-3 px-4">IntentClassifier (patterns)</td><td class="py-3 px-4">Route to FAQ, appointment, escalation, etc.</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – safety</td><td class="py-3 px-4">IVFGuardrail</td><td class="py-3 px-4">Restrict to IVF-related queries and answers</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – FAQ</td><td class="py-3 px-4">SentenceTransformer (embeddings)</td><td class="py-3 px-4">Semantic search over FAQs (multilingual)</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – fallback</td><td class="py-3 px-4">MedGemma-4b-it</td><td class="py-3 px-4">Generate answer when FAQ has no good match; image+text</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Translation</td><td class="py-3 px-4">googletrans</td><td class="py-3 px-4">Chat translation (en↔hi), page translation (14+ languages)</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Engagement tools</td><td class="py-3 px-4">Rules + optional MedGemma</td><td class="py-3 px-4">Scores/recommendations + short AI “insight”</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Disclaimers -->
+        <section id="disclaimers" class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">7. Disclaimers and limitations</h2>
+            <div class="bg-amber-50 border-l-4 border-amber-500 p-6 rounded-r-lg">
+                <p class="text-gray-700">All AI-generated content in this project is for <strong>patient education and awareness only</strong>. It does not replace professional medical advice, diagnosis, or treatment. The guardrail limits scope to IVF-related topics but does not guarantee clinical accuracy. Users are directed to the HomeIVF website and contact number for professional care.</p>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-16 pt-8 border-t border-gray-200">
+            <div class="text-center text-gray-600">
+                <p class="mb-2">AI Engagement Tools (Home IVF). For full technical setup, see <a href="README.md" class="text-primary-600 hover:underline">README.md</a> and <a href="QUICKSTART.md" class="text-primary-600 hover:underline">QUICKSTART.md</a>.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" 
+            class="no-print fixed bottom-8 right-8 bg-primary-600 text-white p-3 rounded-full shadow-lg hover:bg-primary-700 transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+        </svg>
+    </button>
+</body>
+</html>

@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  const API_BASE = window.API_BASE || "http://localhost:8000";
+  var API_PORT = window.API_PORT || "8000";
+  const API_BASE = window.API_BASE || (window.location.protocol + "//" + window.location.hostname + ":" + API_PORT);
 
   function getPatientId() {
     let id = sessionStorage.getItem("home_ivf_patient_id");
@@ -24,7 +25,11 @@
   }
 
   function api(method, path, body) {
-    const opts = { method: method, headers: { "Content-Type": "application/json" } };
+    const opts = {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      credentials: "omit"
+    };
     if (body != null) opts.body = JSON.stringify(body);
     return fetch(API_BASE + path, opts).then(function (r) {
       if (!r.ok) return r.json().then(function (j) { throw new Error(j.detail || j.message || r.statusText); }).catch(function () { throw new Error(r.statusText); });
@@ -66,10 +71,12 @@
 
   // --- Page translation (googletrans) ---
   var translateSelect = document.getElementById("translate-select");
+  var translateLoading = document.getElementById("translate-loading");
   var TRANSLATE_SELECTOR = ".header .logo, .header .tagline, .header .nav-link, " +
     ".panel-content h2, .panel-content > p, .panel-content > .muted, .card h3, .card p, .card a.btn, " +
     ".form-engagement label, .form-engagement button, .footer > p:not(.footer-professional)";
   var translationOriginals = [];
+  var translationCache = {}; // dest lang -> array of translated strings (avoids lag on re-select)
 
   function collectTranslatable() {
     var nodes = document.querySelectorAll(TRANSLATE_SELECTOR);
@@ -90,25 +97,39 @@
     translationOriginals.forEach(function (item, i) { item.el.textContent = translations[i] || item.text; });
   }
 
+  function setTranslateLoading(show) {
+    if (translateLoading) translateLoading.classList.toggle("visible", !!show);
+    if (translateSelect) translateSelect.disabled = !!show;
+  }
+
   if (translateSelect) {
     collectTranslatable();
     translateSelect.addEventListener("change", function () {
       var dest = (translateSelect.value || "").trim();
       if (dest === "" || dest === "en") {
         restoreOriginals();
+        translationCache = {};
         return;
       }
       var texts = translationOriginals.map(function (item) { return item.text; });
       if (!texts.length) return;
-      translateSelect.disabled = true;
+      if (translationCache[dest] && translationCache[dest].length === texts.length) {
+        applyTranslations(translationCache[dest]);
+        return;
+      }
+      setTranslateLoading(true);
       api("POST", "/api/v1/translate", { texts: texts, dest: dest, src: "en" })
         .then(function (r) {
-          applyTranslations(r.translations || []);
+          var tr = r.translations || [];
+          translationCache[dest] = tr;
+          applyTranslations(tr);
         })
         .catch(function (err) {
           alert("Translation failed: " + err.message);
+          translateSelect.value = "en";
+          restoreOriginals();
         })
-        .finally(function () { translateSelect.disabled = false; });
+        .finally(function () { setTranslateLoading(false); });
     });
   }
 

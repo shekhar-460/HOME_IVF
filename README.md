@@ -134,7 +134,7 @@ Engagement flow (high level):
 ```
 HOME IVF/
 ├── app/
-│   ├── main.py                    # FastAPI app, CORS, routers, startup/shutdown, GPU cleanup
+│   ├── main.py                    # FastAPI app, CORS (allow *), ensure_cors_headers, routers, startup/shutdown, GPU cleanup
 │   ├── config.py                  # Pydantic Settings (env / .env)
 │   ├── api/routes/
 │   │   ├── health.py              # GET /health/, /health/ready, /health/live
@@ -171,7 +171,7 @@ HOME IVF/
 │   ├── test_engagement_service.py
 │   └── test_schemas.py
 ├── requirements.txt              # App dependencies (googletrans==3.1.0a0)
-├── start.sh                      # Check env (Python, venv, deps, optional DB/Redis) and run server
+├── start.sh                      # Check env and run backend (0.0.0.0:8000) + frontend (0.0.0.0:3000); Ctrl+C stops both
 ├── pytest.ini
 ├── .env                          # Optional (HOST, PORT, DATABASE_URL, etc.)
 ├── .gitignore                    # Python, venv, .env, tests, IDE, OS, logs, model cache
@@ -250,11 +250,16 @@ Settings are defined in `app/config.py` and loaded from the environment or `.env
 ## Running the Application
 
 **Option 1 – One-command script (recommended)**  
-From the project root, run `start.sh`. It checks Python 3.10+, creates/uses `.venv`, installs or updates dependencies from `requirements.txt`, optionally loads `.env`, and starts the server. You can run it from any directory; it changes into the project root automatically.
+From the project root, run `start.sh`. It checks Python 3.10+, creates/uses `.venv`, installs or updates dependencies from `requirements.txt`, optionally loads `.env`, checks PostgreSQL/Redis (optional), starts the **backend** (Uvicorn on `0.0.0.0:8000`), then starts the **frontend** (Python http.server on `0.0.0.0:3000`). You can run it from any directory; it changes into the project root automatically. Press Ctrl+C to stop both.
 
 ```bash
 ./start.sh
 ```
+
+- **Backend:** http://localhost:8000 (and http://*your-ip*:8000 from other devices)  
+- **API docs (Swagger):** http://localhost:8000/docs  
+- **ReDoc:** http://localhost:8000/redoc  
+- **Frontend:** http://localhost:3000 (and http://*your-ip*:3000 from other devices)
 
 **Option 2 – Manual**  
 From the project root with the virtualenv activated:
@@ -264,29 +269,25 @@ source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- **API docs (Swagger):** http://localhost:8000/docs  
-- **ReDoc:** http://localhost:8000/redoc  
-- **Root:** http://localhost:8000/
+In a second terminal, serve the frontend: `cd frontend && python3 -m http.server 3000 --bind 0.0.0.0`
 
 ### Frontend (HTML / CSS / JS)
 
 A static frontend is provided in the `frontend/` folder. It uses only HTML, CSS, and JavaScript (no build step).
 
-1. **Serve the frontend** from a local server so the browser can call the API without CORS issues (the API allows origins such as `http://localhost:3000`, `http://localhost:5173`). For example:
-   ```bash
-   cd frontend && python3 -m http.server 3000
-   ```
-   Then open **http://localhost:3000** in your browser.
+1. **API URL:** The frontend uses **http://*current-host*:8000** by default (e.g. when you open http://localhost:3000 it calls http://localhost:8000; when you open http://192.168.15.18:3000 from another device it calls http://192.168.15.18:8000). No CORS issues when backend and frontend are on the same host. Override with `window.API_BASE` or `window.API_PORT` in `index.html` if the API runs on a different port.
 
-2. **Backend** must be running (e.g. `uvicorn app.main:app --port 8000`). The frontend calls **http://localhost:8000** by default.
-
-3. **Custom API URL:** To point the frontend at a different API base URL, set it before loading the app, e.g. in `index.html` add:
+2. **Custom API URL:** In `index.html`, before `<script src="app.js">`, add for example:
    ```html
-   <script>window.API_BASE = "https://your-api.example.com";</script>
+   <script>window.API_BASE = "http://your-server:8000";</script>
+   <!-- or only change port: -->
+   <script>window.API_PORT = "8000";</script>
    <script src="app.js"></script>
    ```
 
-The frontend includes: **Home** (overview and links), **Chat** (send messages, optional image, suggested actions with professional-help link), a **Translate** dropdown in the header (page translation into 14+ languages via googletrans), and the five **engagement** tools (Fertility Readiness, Hormonal Predictor, Visual Health, Treatment Pathway, Home IVF Eligibility) with forms and result display. The footer includes a link to **HomeIVF** (https://homeivf.com/) and the contact number for professional help.
+3. **CORS:** The backend allows any origin (`Access-Control-Allow-Origin: *`) with `allow_credentials=False`, so the frontend works when opened from any device or port (e.g. 3000, 4200).
+
+The frontend includes: **Home** (overview and links), **Chat** (send messages, optional image, suggested actions with “Get professional help” → HomeIVF), a **Translate** dropdown (default **English**; Indian languages listed first; 14+ languages via googletrans; loader while translating; cache for instant re-select), and the five **engagement** tools with forms and result display. The footer includes a link to **HomeIVF** (https://homeivf.com/) and the contact number. Use **http://** (not https) when opening from the network; the server is HTTP-only.
 
 ---
 
@@ -375,7 +376,7 @@ Images are decoded with Pillow (PIL) and passed to the processor as PIL Images; 
 
 ### Page translation (googletrans)
 
-The frontend header includes a **Translate** dropdown. Selecting a language sends the visible static text (headings, nav, cards, form labels, buttons, footer disclaimer) to the backend; the app uses **googletrans (3.1.0a0)** to translate and returns the strings. The UI replaces the text in place. Choosing **English** or **—** restores the original copy. Supported page languages include English, Hindi, Spanish, French, German, Arabic, Bengali, Chinese (Simplified), Tamil, Telugu, Marathi, Gujarati, Kannada, and Malayalam. API: **GET /api/v1/translate/languages** (list) and **POST /api/v1/translate** (body: `{ "texts": ["..."], "dest": "hi", "src": "en" }`).
+The frontend header includes a **Translate** dropdown (default **English**). Indian languages (Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam) are listed first; then Spanish, French, German, Arabic, Chinese. Selecting a language sends the visible static text to the backend; the app uses **googletrans (3.1.0a0)** and returns translated strings. The UI shows a loader while translating and caches results for instant re-select. Choosing **English** restores the original copy. API: **GET /api/v1/translate/languages** (list) and **POST /api/v1/translate** (body: `{ "texts": ["..."], "dest": "hi", "src": "en" }`).
 
 ### Professional help (HomeIVF)
 
