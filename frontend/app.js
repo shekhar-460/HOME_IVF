@@ -4,10 +4,20 @@
   var API_PORT = window.API_PORT || "8000";
   const API_BASE = window.API_BASE || (window.location.protocol + "//" + window.location.hostname + ":" + API_PORT);
 
+  var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   function getPatientId() {
-    let id = sessionStorage.getItem("home_ivf_patient_id");
-    if (!id) {
-      id = crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/x/g, function () { return (Math.random() * 16 | 0).toString(16); });
+    var id = sessionStorage.getItem("home_ivf_patient_id");
+    if (!id || !UUID_REGEX.test(id)) {
+      if (crypto.randomUUID) {
+        id = crypto.randomUUID();
+      } else {
+        // UUID v4: replace x with random hex; replace y with random variant nibble (8,9,a,b)
+        id = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+          var r = (Math.random() * 16) | 0;
+          return c === "y" ? (r & 3 | 8).toString(16) : r.toString(16);
+        });
+      }
       sessionStorage.setItem("home_ivf_patient_id", id);
     }
     return id;
@@ -174,7 +184,11 @@
     var btn = chatForm.querySelector('button[type="submit"]');
     btn.disabled = true;
 
-    var body = { patient_id: getPatientId(), message: msg, language: "en" };
+    // Use Translate dropdown as preferred response language (read at submit so it's always current)
+    var langSelect = document.getElementById("translate-select");
+    var preferredLang = (langSelect && langSelect.value) ? langSelect.value : "en";
+    var chatLang = (preferredLang === "hi") ? "hi" : "en";
+    var body = { patient_id: getPatientId(), message: msg, language: chatLang };
     if (conversationId) body.conversation_id = conversationId;
 
     api("POST", "/api/v1/chat/message", body)

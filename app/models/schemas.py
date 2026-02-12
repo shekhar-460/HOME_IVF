@@ -1,10 +1,36 @@
 """
 Pydantic models for request/response validation
 """
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
+
+
+def _sanitize_uuid_string(value: str) -> str:
+    """Replace non-hex characters in a UUID-like string so it parses. Handles legacy 'y' bug."""
+    # Keep only hex and hyphens; replace invalid (e.g. 'y') with '0'
+    sanitized = re.sub(r"[^0-9a-fA-F\-]", "0", value)
+    # UUID format 8-4-4-4-12: variant nibble is at index 19 (first char of fourth group)
+    if len(sanitized) > 19 and sanitized[19] not in "89ab89AB":
+        sanitized = sanitized[:19] + "9" + sanitized[20:]
+    return sanitized
+
+
+def _coerce_patient_uuid(v):  # used by validators
+    if isinstance(v, UUID):
+        return v
+    s = str(v).strip()
+    try:
+        return UUID(s)
+    except (ValueError, TypeError):
+        pass
+    sanitized = _sanitize_uuid_string(s)
+    try:
+        return UUID(sanitized)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid patient_id: must be a valid UUID")
 
 
 class ChatMessageRequest(BaseModel):
@@ -16,6 +42,11 @@ class ChatMessageRequest(BaseModel):
     context: Optional[Dict[str, Any]] = Field(default={}, description="Additional context for the conversation")
     image_base64: Optional[str] = Field(default=None, description="Optional image (base64) for multimodal MedGemma Q&A (e.g. scan, photo)")
     
+    @field_validator("patient_id", mode="before")
+    @classmethod
+    def coerce_patient_id(cls, v):
+        return _coerce_patient_uuid(v)
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -33,7 +64,12 @@ class ConversationRequest(BaseModel):
     initial_message: Optional[str] = Field(None, description="Initial message to start the conversation", example="नमस्ते, मैं आईवीएफ के बारे में जानना चाहती हूं")
     language: Optional[str] = Field(default="en", description="Language code: 'en' (English) or 'hi' (Hindi). Auto-detected if not provided.")
     metadata: Optional[Dict[str, Any]] = Field(default={}, description="Additional metadata for the conversation")
-    
+
+    @field_validator("patient_id", mode="before")
+    @classmethod
+    def coerce_patient_id(cls, v):
+        return _coerce_patient_uuid(v)
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -117,6 +153,11 @@ class EscalationRequest(BaseModel):
     reason: str
     urgency: str = Field(..., pattern="^(low|medium|high|urgent)$")
     patient_id: UUID
+
+    @field_validator("patient_id", mode="before")
+    @classmethod
+    def coerce_patient_id(cls, v):
+        return _coerce_patient_uuid(v)
 
 
 class EscalationResponse(BaseModel):
