@@ -347,7 +347,7 @@ The frontend includes: **Home** (overview and links), **Chat** (send messages, o
 All engagement endpoints accept JSON and return JSON. Each supports `language` (`en`/`hi`) and `use_ai_insight` (optional MedGemma snippet).
 
 - **Fertility Readiness** – Inputs: age, medical_history, lifestyle_*, bmi, menstrual_pattern, cycle_length_days, previous_pregnancies, live_births, miscarriages, years_trying. Outputs: risk_score (0–100), risk_level (low/moderate/high), next_steps, guidance_text, ai_insight.
-- **Hormonal Predictor** – Inputs: age, sex (female/male/couple), irregular_cycles, symptoms_*, years_trying, previous_tests_*. Outputs: suggest_amh, suggest_semen_analysis, suggest_specialist, when_to_test, reasoning, ai_insight.
+- **Hormonal Predictor** – Inputs: age, sex (female/male), irregular_cycles, symptoms_*, years_trying, previous_tests_*. Outputs: suggest_amh, suggest_semen_analysis, suggest_specialist, when_to_test, reasoning, ai_insight.
 - **Visual Health** – Inputs: optional image_base64, self_reported_sleep_hours, stress_level, bmi, skin_concerns. Outputs: disclaimer, wellness_indicators, recommendations, ai_insight (non-diagnostic).
 - **Treatment Pathway** – Inputs: age, sex, years_trying, known_diagnosis, previous_treatments, preserving_fertility. Outputs: suggested_pathways, primary_recommendation, reasoning, ai_insight.
 - **Home IVF Eligibility** – Inputs: female_age, male_age, medical_contraindications, has_consulted_specialist, ovarian_reserve_known, semen_analysis_known, stable_relationship_or_single_with_donor. Outputs: eligible, reasons, missing_criteria, prompt_consultation, booking_message, ai_insight.

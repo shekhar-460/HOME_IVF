@@ -14,7 +14,31 @@
   <header class="header">
     <div class="header-inner">
       <h1 class="logo">Home IVF</h1>
+      <nav class="nav">
       <p class="tagline">Patient Education & Engagement</p>
+      <div class="nav-translate">
+        <label for="translate-select" class="translate-label">Translate</label>
+        <select id="translate-select" class="translate-select" title="Translate page">
+          <option value="en" selected>English</option>
+          <option value="hi">हिन्दी</option>
+          <option value="bn">বাংলা</option>
+          <option value="ta">தமிழ்</option>
+          <option value="te">తెలుగు</option>
+          <option value="mr">मराठी</option>
+          <option value="gu">ગુજરાતી</option>
+          <option value="kn">ಕನ್ನಡ</option>
+          <option value="ml">മലയാളം</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="ar">العربية</option>
+          <option value="zh-cn">中文</option>
+        </select>
+        <span id="translate-loading" class="translate-loading" aria-hidden="true" aria-label="Translating">
+<span class="translate-spinner"></span>
+</span>
+      </div>
+    </nav>
       <nav class="nav">
         <a href="#home" class="nav-link active">Home</a>
         <a href="#chat" class="nav-link">Chat</a>
@@ -23,28 +47,7 @@
         <a href="#visual-health" class="nav-link">Visual Health</a>
         <a href="#treatment-pathway" class="nav-link">Treatment Pathway</a>
         <a href="#home-ivf-eligibility" class="nav-link">Home IVF Eligibility</a>
-        <div class="nav-translate">
-          <label for="translate-select" class="translate-label">Translate</label>
-          <select id="translate-select" class="translate-select" title="Translate page">
-            <option value="en" selected>English</option>
-            <option value="hi">हिन्दी</option>
-            <option value="bn">বাংলা</option>
-            <option value="ta">தமிழ்</option>
-            <option value="te">తెలుగు</option>
-            <option value="mr">मराठी</option>
-            <option value="gu">ગુજરાતી</option>
-            <option value="kn">ಕನ್ನಡ</option>
-            <option value="ml">മലയാളം</option>
-            <option value="es">Español</option>
-            <option value="fr">Français</option>
-            <option value="de">Deutsch</option>
-            <option value="ar">العربية</option>
-            <option value="zh-cn">中文</option>
-          </select>
-          <span id="translate-loading" class="translate-loading" aria-hidden="true" aria-label="Translating">
-  <span class="translate-spinner"></span>
-</span>
-        </div>
+        
       </nav>
     </div>
   </header>
@@ -110,11 +113,49 @@
       <div class="panel-content">
         <h2>Fertility Readiness Calculator</h2>
         <p class="muted">Preliminary risk score and next steps. Not a diagnosis.</p>
+        <details class="score-inputs-info" id="fertility-score-inputs">
+          <summary>Inputs that calculate your score (High or Low)</summary>
+          <p class="score-inputs-intro">The risk score is based only on these fields:</p>
+          <ul class="score-inputs-list">
+            <li><strong>Age</strong> — higher age increases risk (30+, 35+, 40+)</li>
+            <li><strong>Medical history</strong> — each recognized condition (e.g. PCOS, thyroid) adds to the score</li>
+            <li><strong>I smoke</strong> — smoking adds to risk</li>
+            <li><strong>Alcohol</strong> — regular use adds to risk</li>
+            <li><strong>Exercise</strong> — sedentary adds to risk</li>
+            <li><strong>Weight + Height</strong> — BMI below 18.5 or above 30 adds to risk</li>
+            <li><strong>Menstrual pattern</strong> — irregular or absent adds to risk</li>
+            <li><strong>Miscarriages</strong> — any history adds to risk</li>
+            <li><strong>Years trying to conceive</strong> — 1+ year adds to risk</li>
+          </ul>
+          <p class="score-inputs-note">Cycle length, previous pregnancies, and live births are collected but do not change the score.</p>
+        </details>
         <form id="form-fertility-readiness" class="form-engagement">
           <label>Age (years) *</label>
-          <input type="number" name="age" min="18" max="55" value="30" required />
-          <label>Medical history (comma-separated, e.g. PCOS, thyroid)</label>
-          <input type="text" name="medical_history" placeholder="PCOS, endometriosis, …" />
+          <div class="input-with-hint">
+            <input type="number" name="age" min="18" max="55" value="30" required aria-describedby="fertility-age-hint" />
+            <span id="fertility-age-hint" class="field-hint">18–55 years</span>
+          </div>
+          <label>Medical history</label>
+          <div class="medical-history-picker" aria-describedby="medical-history-hint">
+            <div class="medical-history-row">
+              <select id="medical-history-select" name="medical_history_select" aria-label="Select a condition">
+                <option value="">Select condition…</option>
+                <option value="PCOS">PCOS</option>
+                <option value="Endometriosis">Endometriosis</option>
+                <option value="Thyroid disorder">Thyroid disorder</option>
+                <option value="Diabetes">Diabetes</option>
+                <option value="Prior pelvic/fertility surgery">Prior pelvic/fertility surgery</option>
+                <option value="Tubal factor">Tubal factor</option>
+                <option value="__other__">Other (not listed)</option>
+              </select>
+              <div id="medical-history-other-wrap" class="medical-history-other-wrap" hidden>
+                <input type="text" id="medical-history-other" placeholder="Specify condition" aria-label="Other condition" />
+              </div>
+              <button type="button" id="medical-history-add" class="btn btn-secondary">Add</button>
+            </div>
+            <p id="medical-history-hint" class="field-hint">Add one or more conditions; only recognized ones affect the score. Use “Other” if yours is not listed.</p>
+            <ul id="medical-history-list" class="medical-history-list" aria-label="Added conditions"></ul>
+          </div>
           <label><input type="checkbox" name="lifestyle_smoking" /> I smoke</label>
           <label>Alcohol</label>
           <select name="lifestyle_alcohol">
@@ -128,8 +169,11 @@
             <option value="moderate" selected>Moderate</option>
             <option value="active">Active</option>
           </select>
-          <label>BMI (optional)</label>
-          <input type="number" name="bmi" min="15" max="50" step="0.1" placeholder="e.g. 24" />
+          <label>Weight (kg, optional)</label>
+          <input type="number" name="weight_kg" id="fertility-weight" min="30" max="200" step="0.1" placeholder="e.g. 65" />
+          <label>Height (cm, optional)</label>
+          <input type="number" name="height_cm" id="fertility-height" min="100" max="250" step="1" placeholder="e.g. 165" />
+          <p id="fertility-bmi-display" class="field-hint bmi-display" aria-live="polite">BMI will be calculated from weight and height.</p>
           <label>Menstrual pattern</label>
           <select name="menstrual_pattern">
             <option value="regular">Regular</option>
@@ -157,28 +201,41 @@
     <!-- Hormonal Predictor -->
     <section id="hormonal-predictor" class="panel">
       <div class="panel-content">
-        <h2>Hormonal & Ovarian Health Predictor</h2>
-        <p class="muted">When to consider AMH, semen analysis, or a specialist.</p>
+        <h2>Hormonal & Fertility Health Predictor</h2>
+        <p class="muted">Tailored for you: when to consider AMH (ovarian reserve), semen analysis, or a specialist.</p>
         <form id="form-hormonal-predictor" class="form-engagement">
-          <label>Age *</label>
-          <input type="number" name="age" min="18" max="55" value="32" required />
+          <label>Your age *</label>
+          <div class="input-with-hint">
+            <input type="number" name="age" min="18" max="55" value="32" required aria-describedby="hormonal-age-hint" />
+            <span id="hormonal-age-hint" class="field-hint">18–55 years</span>
+          </div>
           <label>I am</label>
-          <select name="sex">
+          <select name="sex" id="hormonal-sex">
             <option value="female">Female</option>
             <option value="male">Male</option>
-            <option value="couple">Couple</option>
           </select>
-          <label><input type="checkbox" name="irregular_cycles" /> Irregular cycles</label>
-          <label>Cycle length (days, optional)</label>
-          <input type="number" name="cycle_length_days" min="21" max="45" placeholder="28" />
-          <label><input type="checkbox" name="symptoms_acne" /> Acne</label>
-          <label><input type="checkbox" name="symptoms_hirsutism" /> Hirsutism</label>
-          <label><input type="checkbox" name="symptoms_heavy_bleeding" /> Heavy bleeding</label>
-          <label><input type="checkbox" name="symptoms_pain" /> Pain</label>
-          <label>Years trying (optional)</label>
+
+          <!-- Female-specific: cycle & ovarian health -->
+          <div id="hormonal-female-fields" class="hormonal-sex-block">
+            <h4 class="hormonal-block-title">Cycle & ovarian health</h4>
+            <label><input type="checkbox" name="irregular_cycles" /> Irregular cycles</label>
+            <label>Cycle length (days, optional)</label>
+            <input type="number" name="cycle_length_days" min="21" max="45" placeholder="28" />
+            <label><input type="checkbox" name="symptoms_acne" /> Acne</label>
+            <label><input type="checkbox" name="symptoms_hirsutism" /> Hirsutism</label>
+            <label><input type="checkbox" name="symptoms_heavy_bleeding" /> Heavy bleeding</label>
+            <label><input type="checkbox" name="symptoms_pain" /> Pain</label>
+            <label><input type="checkbox" name="previous_tests_amh" /> Already had AMH test</label>
+          </div>
+
+          <!-- Male-specific: semen analysis -->
+          <div id="hormonal-male-fields" class="hormonal-sex-block">
+            <h4 class="hormonal-block-title">Semen analysis</h4>
+            <label><input type="checkbox" name="previous_tests_semen" /> Already had semen analysis</label>
+          </div>
+
+          <label>Years trying to conceive (optional)</label>
           <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 2" />
-          <label><input type="checkbox" name="previous_tests_amh" /> Already had AMH test</label>
-          <label><input type="checkbox" name="previous_tests_semen" /> Already had semen analysis</label>
           <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
           <button type="submit" class="btn btn-primary">Get suggestions</button>
         </form>
@@ -201,10 +258,16 @@
             <option value="moderate">Moderate</option>
             <option value="high">High</option>
           </select>
-          <label>BMI (optional)</label>
-          <input type="number" name="self_reported_bmi" min="15" max="50" step="0.1" placeholder="e.g. 24" />
+          <label>Weight (kg, optional)</label>
+          <input type="number" name="weight_kg" id="visual-weight" min="30" max="200" step="0.1" placeholder="e.g. 65" />
+          <label>Height (cm, optional)</label>
+          <input type="number" name="height_cm" id="visual-height" min="100" max="250" step="1" placeholder="e.g. 165" />
+          <p id="visual-bmi-display" class="field-hint bmi-display" aria-live="polite">BMI will be calculated from weight and height.</p>
           <label>Optional: upload image (wellness/face, for exploratory AI)</label>
-          <input type="file" name="image" accept="image/*" id="visual-health-image" />
+          <div class="file-upload-row">
+            <input type="file" name="image" accept="image/*" id="visual-health-image" aria-describedby="visual-health-image-hint" />
+          </div>
+          <span id="visual-health-image-hint" class="field-hint">Maximum upload size: 5 MB</span>
           <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
           <button type="submit" class="btn btn-primary">Get recommendations</button>
         </form>
@@ -219,12 +282,14 @@
         <p class="muted">Guidance toward natural conception, IUI, IVF, or fertility preservation.</p>
         <form id="form-treatment-pathway" class="form-engagement">
           <label>Age *</label>
-          <input type="number" name="age" min="18" max="55" value="34" required />
+          <div class="input-with-hint">
+            <input type="number" name="age" min="18" max="55" value="34" required aria-describedby="pathway-age-hint" />
+            <span id="pathway-age-hint" class="field-hint">18–55 years</span>
+          </div>
           <label>I am</label>
           <select name="sex">
             <option value="female">Female</option>
             <option value="male">Male</option>
-            <option value="couple">Couple</option>
           </select>
           <label>Years trying (optional)</label>
           <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 2" />
@@ -247,9 +312,15 @@
         <p class="muted">Quick indication of suitability; book a consultation to confirm.</p>
         <form id="form-home-ivf-eligibility" class="form-engagement">
           <label>Female age *</label>
-          <input type="number" name="female_age" min="18" max="50" value="33" required />
+          <div class="input-with-hint">
+            <input type="number" name="female_age" min="18" max="50" value="33" required aria-describedby="female-age-hint" />
+            <span id="female-age-hint" class="field-hint">18–50 years</span>
+          </div>
           <label>Male age (optional)</label>
-          <input type="number" name="male_age" min="18" max="60" placeholder="35" />
+          <div class="input-with-hint">
+            <input type="number" name="male_age" min="18" max="60" placeholder="35" aria-describedby="male-age-hint" />
+            <span id="male-age-hint" class="field-hint">18–60 years</span>
+          </div>
           <label>Medical contraindications (comma-separated)</label>
           <input type="text" name="medical_contraindications" placeholder="e.g. severe OHSS history" />
           <label><input type="checkbox" name="has_consulted_specialist" /> Have consulted a specialist</label>

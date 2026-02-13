@@ -35,7 +35,7 @@ class TestFertilityReadinessSchemas:
 
 class TestHormonalPredictorSchemas:
     def test_request_sex_values(self):
-        for sex in ("female", "male", "couple"):
+        for sex in ("female", "male"):
             r = HormonalPredictorRequest(age=30, sex=sex)
             assert r.sex == sex
 
@@ -58,7 +58,7 @@ class TestVisualHealthSchemas:
 
 class TestTreatmentPathwaySchemas:
     def test_request_valid(self):
-        r = TreatmentPathwayRequest(age=35, sex="couple", years_trying=1, known_diagnosis=["PCOS"])
+        r = TreatmentPathwayRequest(age=35, sex="female", years_trying=1, known_diagnosis=["PCOS"])
         assert r.known_diagnosis == ["PCOS"]
 
 

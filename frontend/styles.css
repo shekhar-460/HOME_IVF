@@ -66,15 +66,11 @@ body {
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1rem;
   width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
 }
 .nav-link {
   color: var(--text);
@@ -154,6 +150,35 @@ body {
 }
 .muted { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 1.25rem; }
 
+/* Inputs that affect fertility risk score (High/Low) */
+.score-inputs-info {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.score-inputs-info summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+.score-inputs-info[open] summary { margin-bottom: 0.5rem; }
+.score-inputs-intro { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--text); }
+.score-inputs-list {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.score-inputs-list li { margin: 0.25rem 0; }
+.score-inputs-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* --- Cards (home) --- */
 .card-grid {
   display: grid;
@@ -230,6 +255,95 @@ body {
 }
 .form-engagement button[type="submit"] { margin-top: 1.25rem; }
 
+/* Hormonal Predictor: male/female-specific blocks */
+.form-engagement .hormonal-sex-block {
+  margin-top: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+.form-engagement .hormonal-block-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, #1f2937);
+}
+.form-engagement .hormonal-sex-block label:first-of-type { margin-top: 0; }
+
+.form-engagement .input-with-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  max-width: 400px;
+}
+.form-engagement .input-with-hint input {
+  width: 6rem;
+  min-width: 4rem;
+}
+.form-engagement .file-upload-row {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+.form-engagement .field-hint {
+  font-size: 0.85rem;
+  color: var(--muted, #6b7280);
+}
+
+.form-engagement .bmi-display {
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.form-engagement .medical-history-picker { max-width: 500px; }
+.form-engagement .medical-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.form-engagement .medical-history-row select {
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+}
+.form-engagement .medical-history-other-wrap {
+  flex: 1;
+  min-width: 140px;
+  max-width: 200px;
+}
+.form-engagement .medical-history-other-wrap input { width: 100%; }
+.form-engagement .medical-history-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.form-engagement .medical-history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--accent-subtle);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+.form-engagement .medical-history-chip .chip-remove {
+  padding: 0 0.2rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 2px;
+}
+.form-engagement .medical-history-chip .chip-remove:hover {
+  color: var(--accent);
+  background: rgba(0,0,0,0.06);
+}
+
 /* --- Result box --- */
 .result-box {
   background: var(--surface);
@@ -243,6 +357,12 @@ body {
 .result-box h4 { margin: 0 0 0.5rem; font-size: 1rem; }
 .result-box ul { margin: 0.5rem 0; padding-left: 1.25rem; }
 .result-box .ai-insight { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); font-style: italic; color: var(--text-muted); }
+.result-box .result-summary { margin: 0 0 0.75rem; font-size: 0.95rem; }
+.result-box .result-what-you-shared { margin: 0 0 0.75rem; font-size: 0.9rem; color: var(--text-muted); }
+.result-box .result-section-title { margin: 0.75rem 0 0.35rem; font-size: 0.9rem; }
+.result-box .image-analysis { margin-top: 0.75rem; padding: 0.75rem; background: var(--bg); border-radius: var(--radius); border-left: 3px solid var(--border); }
+.result-box .image-analysis p { margin: 0.35rem 0 0; }
+.result-box .result-disclaimer { margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 
 /* --- Chat --- */
 .chat-wrap {

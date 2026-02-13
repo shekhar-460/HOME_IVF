@@ -46,7 +46,7 @@ async def test_hormonal_predictor_ok(client):
     """Hormonal predictor returns 200 and expected shape."""
     payload = {
         "age": 34,
-        "sex": "couple",
+        "sex": "female",
         "irregular_cycles": True,
         "years_trying": 2,
         "use_ai_insight": False,
@@ -83,7 +83,7 @@ async def test_treatment_pathway_ok(client):
     """Treatment pathway returns 200 and suggested pathways."""
     payload = {
         "age": 36,
-        "sex": "couple",
+        "sex": "female",
         "years_trying": 2,
         "known_diagnosis": [],
         "use_ai_insight": False,

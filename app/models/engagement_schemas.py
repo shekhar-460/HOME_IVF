@@ -43,6 +43,14 @@ class FertilityReadinessResponse(BaseModel):
     next_steps: List[str] = Field(default_factory=list)
     guidance_text: str = Field(default="")
     ai_insight: Optional[str] = None
+    medical_history_recognized: Optional[List[str]] = Field(
+        default=None,
+        description="Canonical conditions used in scoring (e.g. PCOS, thyroid)"
+    )
+    medical_history_unrecognized: Optional[List[str]] = Field(
+        default=None,
+        description="Raw entries that could not be mapped; not used in scoring"
+    )
 
 
 # --- Hormonal & Ovarian Health Predictor ---
@@ -50,7 +58,7 @@ class FertilityReadinessResponse(BaseModel):
 class HormonalPredictorRequest(BaseModel):
     """Questionnaire + data for when to test AMH, semen analysis, or specialist."""
     age: int = Field(..., ge=18, le=55)
-    sex: str = Field(..., description="female / male / couple")
+    sex: str = Field(..., description="female / male")
     irregular_cycles: bool = Field(default=False)
     cycle_length_days: Optional[int] = Field(default=None, ge=21, le=45)
     symptoms_acne: bool = Field(default=False)
@@ -89,11 +97,23 @@ class VisualHealthRequest(BaseModel):
 
 class VisualHealthResponse(BaseModel):
     """Non-diagnostic wellness and reproductive health awareness."""
+    summary: Optional[str] = Field(
+        default=None,
+        description="Short, patient-friendly takeaway (1–2 sentences) for quick understanding."
+    )
     disclaimer: str = Field(
         default="This is for general wellness awareness only and is not a medical diagnosis."
     )
+    wellness_summary: Optional[str] = Field(
+        default=None,
+        description="Plain-language summary of what the patient shared (sleep, stress, BMI, image)."
+    )
     wellness_indicators: Dict[str, Any] = Field(default_factory=dict)
     recommendations: List[str] = Field(default_factory=list)
+    image_analysis: Optional[str] = Field(
+        default=None,
+        description="When an image was uploaded and analyzed, short non-diagnostic wellness observation."
+    )
     ai_insight: Optional[str] = None
 
 
@@ -102,7 +122,7 @@ class VisualHealthResponse(BaseModel):
 class TreatmentPathwayRequest(BaseModel):
     """Input for recommending natural conception, IUI, IVF, or fertility preservation."""
     age: int = Field(..., ge=18, le=55)
-    sex: str = Field(..., description="female / male / couple")
+    sex: str = Field(..., description="female / male")
     years_trying: Optional[float] = Field(default=None, ge=0, le=20)
     known_diagnosis: Optional[List[str]] = Field(
         default=[],

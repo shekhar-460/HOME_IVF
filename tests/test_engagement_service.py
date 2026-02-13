@@ -47,6 +47,36 @@ class TestFertilityReadiness:
         assert res.risk_level == "high"
         assert res.risk_score >= 60
         assert any("specialist" in s.lower() for s in res.next_steps)
+        assert "PCOS" in (res.medical_history_recognized or [])
+        assert "Endometriosis" in (res.medical_history_recognized or [])
+
+    def test_medical_history_variations_normalized(self, service):
+        """Variations like pcod, PCO, thyroid are recognized and used; score is consistent."""
+        req = FertilityReadinessRequest(
+            age=30,
+            medical_history=["pcod", "PCO", "thyroid"],
+            menstrual_pattern=MenstrualPattern.regular,
+            previous_pregnancies=0,
+            use_ai_insight=False,
+        )
+        res = service.fertility_readiness(req)
+        assert "PCOS" in (res.medical_history_recognized or [])
+        assert "Thyroid disorder" in (res.medical_history_recognized or [])
+        assert res.medical_history_unrecognized is None or len(res.medical_history_unrecognized) == 0
+
+    def test_medical_history_unrecognized_not_used_in_score(self, service):
+        """Invalid or typo entries are not used in scoring and are reported to the user."""
+        req = FertilityReadinessRequest(
+            age=30,
+            medical_history=["pcos", "xyz typo", "unknown_condition"],
+            menstrual_pattern=MenstrualPattern.regular,
+            previous_pregnancies=0,
+            use_ai_insight=False,
+        )
+        res = service.fertility_readiness(req)
+        assert res.medical_history_recognized == ["PCOS"]
+        assert "xyz typo" in (res.medical_history_unrecognized or [])
+        assert "unknown_condition" in (res.medical_history_unrecognized or [])
 
 
 class TestHormonalPredictor:
@@ -65,7 +95,7 @@ class TestHormonalPredictor:
     def test_suggests_specialist_after_two_years(self, service):
         req = HormonalPredictorRequest(
             age=35,
-            sex="couple",
+            sex="female",
             years_trying=2.5,
             use_ai_insight=False,
         )
@@ -91,7 +121,7 @@ class TestTreatmentPathway:
     def test_natural_conception_when_recently_trying(self, service):
         req = TreatmentPathwayRequest(
             age=28,
-            sex="couple",
+            sex="female",
             years_trying=0.5,
             use_ai_insight=False,
         )
@@ -102,7 +132,7 @@ class TestTreatmentPathway:
     def test_ivf_suggested_with_tubal_diagnosis(self, service):
         req = TreatmentPathwayRequest(
             age=34,
-            sex="couple",
+            sex="female",
             years_trying=2,
             known_diagnosis=["tubal factor"],
             use_ai_insight=False,

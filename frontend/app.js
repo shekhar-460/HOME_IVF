@@ -4,6 +4,33 @@
   var API_PORT = window.API_PORT || "8000";
   const API_BASE = window.API_BASE || (window.location.protocol + "//" + window.location.hostname + ":" + API_PORT);
 
+  // Age (and other min/max number) validation: clear input when value is outside range
+  function setupNumberRangeValidation() {
+    document.querySelectorAll(".form-engagement input[type=number][min][max]").forEach(function (input) {
+      var min = parseInt(input.getAttribute("min"), 10);
+      var max = parseInt(input.getAttribute("max"), 10);
+      if (isNaN(min) || isNaN(max)) return;
+
+      function validateAndClear() {
+        var val = input.value.trim();
+        if (val === "") return;
+        var n = parseInt(val, 10);
+        if (isNaN(n) || n < min || n > max) {
+          input.value = "";
+          input.setCustomValidity("Please enter an age between " + min + " and " + max + ".");
+        } else {
+          input.setCustomValidity("");
+        }
+      }
+
+      input.addEventListener("blur", validateAndClear);
+      input.addEventListener("input", function () {
+        if (input.value.trim() !== "") input.setCustomValidity("");
+      });
+    });
+  }
+  setupNumberRangeValidation();
+
   var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   function getPatientId() {
@@ -33,6 +60,31 @@
     const n = Number(val);
     return isNaN(n) ? undefined : n;
   }
+
+  // BMI from weight (kg) and height (cm): BMI = weight / (height/100)^2
+  function calcBMI(weightKg, heightCm) {
+    var w = parseFloat(weightKg);
+    var h = parseFloat(heightCm);
+    if (isNaN(w) || isNaN(h) || h <= 0) return null;
+    var heightM = h / 100;
+    var bmi = w / (heightM * heightM);
+    return Math.round(bmi * 10) / 10;
+  }
+
+  function setupBMIDisplay(weightId, heightId, displayId) {
+    var weightEl = document.getElementById(weightId);
+    var heightEl = document.getElementById(heightId);
+    var displayEl = document.getElementById(displayId);
+    if (!weightEl || !heightEl || !displayEl) return;
+    function update() {
+      var bmi = calcBMI(weightEl.value, heightEl.value);
+      displayEl.textContent = bmi != null ? "BMI: " + bmi + " (from weight & height)" : "BMI will be calculated from weight and height.";
+    }
+    weightEl.addEventListener("input", update);
+    heightEl.addEventListener("input", update);
+  }
+  setupBMIDisplay("fertility-weight", "fertility-height", "fertility-bmi-display");
+  setupBMIDisplay("visual-weight", "visual-height", "visual-bmi-display");
 
   function api(method, path, body) {
     const opts = {
@@ -175,6 +227,14 @@
     return div.innerHTML;
   }
 
+  // Allow Enter to submit; Shift+Enter for new line
+  chatInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      chatForm.requestSubmit();
+    }
+  });
+
   chatForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var msg = (chatInput.value || "").trim();
@@ -205,13 +265,68 @@
       .finally(function () { btn.disabled = false; });
   });
 
+  // --- Fertility Readiness: medical history dropdown + Other ---
+  (function () {
+    var selectEl = document.getElementById("medical-history-select");
+    var otherWrap = document.getElementById("medical-history-other-wrap");
+    var otherInput = document.getElementById("medical-history-other");
+    var addBtn = document.getElementById("medical-history-add");
+    var listEl = document.getElementById("medical-history-list");
+    var added = [];
+
+    function toggleOther() {
+      otherWrap.hidden = selectEl.value !== "__other__";
+      if (otherWrap.hidden) otherInput.value = "";
+    }
+    function renderList() {
+      listEl.innerHTML = "";
+      added.forEach(function (item, i) {
+        var li = document.createElement("li");
+        li.className = "medical-history-chip";
+        li.innerHTML = "<span>" + escapeHtml(item) + "</span> <button type=\"button\" class=\"chip-remove\" data-index=\"" + i + "\" aria-label=\"Remove\">&times;</button>";
+        listEl.appendChild(li);
+      });
+    }
+    function addCondition() {
+      var val = selectEl.value;
+      if (val === "__other__") {
+        val = (otherInput.value || "").trim();
+        if (!val) return;
+        otherInput.value = "";
+      } else if (!val) return;
+      added.push(val);
+      renderList();
+      selectEl.value = "";
+      toggleOther();
+    }
+    addBtn.addEventListener("click", addCondition);
+    selectEl.addEventListener("change", toggleOther);
+    otherInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); addCondition(); }
+    });
+    listEl.addEventListener("click", function (e) {
+      if (e.target.classList.contains("chip-remove")) {
+        var i = parseInt(e.target.getAttribute("data-index"), 10);
+        if (!isNaN(i)) { added.splice(i, 1); renderList(); }
+      }
+    });
+  })();
+
   // --- Fertility Readiness ---
   document.getElementById("form-fertility-readiness").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    var medicalHistoryListEl = document.getElementById("medical-history-list");
+    var medicalHistory = [];
+    if (medicalHistoryListEl) {
+      medicalHistoryListEl.querySelectorAll(".medical-history-chip span").forEach(function (span) {
+        var t = (span.textContent || "").trim();
+        if (t) medicalHistory.push(t);
+      });
+    }
     var data = {
       age: parseInt(f.age.value, 10),
-      medical_history: parseList(f.medical_history.value),
+      medical_history: medicalHistory,
       lifestyle_smoking: !!f.lifestyle_smoking.checked,
       lifestyle_alcohol: f.lifestyle_alcohol.value,
       lifestyle_exercise: f.lifestyle_exercise.value,
@@ -221,7 +336,8 @@
       miscarriages: parseInt(f.miscarriages.value, 10) || 0,
       use_ai_insight: !!f.use_ai_insight.checked
     };
-    if (f.bmi.value) data.bmi = parseFloat(f.bmi.value);
+    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (bmi != null) data.bmi = bmi;
     if (f.cycle_length_days.value) data.cycle_length_days = parseInt(f.cycle_length_days.value, 10);
     if (f.years_trying.value) data.years_trying = parseFloat(f.years_trying.value);
 
@@ -233,29 +349,58 @@
       .then(function (r) {
         var html = "<h4>Result</h4>Risk score: " + r.risk_score + " — " + (r.risk_level || "") + "\n" + (r.guidance_text || "");
         if (r.next_steps && r.next_steps.length) html += "\n\nNext steps:\n<ul><li>" + r.next_steps.map(escapeHtml).join("</li><li>") + "</li></ul>";
-        if (r.ai_insight) html += '<div class="ai-insight">' + escapeHtml(r.ai_insight) + "</div>";
+        if (r.medical_history_recognized && r.medical_history_recognized.length) html += "\n\n<strong>Medical conditions used in score:</strong> " + r.medical_history_recognized.map(escapeHtml).join(", ") + ".";
+        if (r.medical_history_unrecognized && r.medical_history_unrecognized.length) html += "\n\n<strong>Not recognized (not used in score):</strong> " + r.medical_history_unrecognized.map(escapeHtml).join(", ") + ". Check spelling or choose from the suggested options next time.";
+        if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
   });
 
+  // --- Hormonal Predictor: show female block for Female only, male block for Male only ---
+  (function () {
+    var sexSelect = document.getElementById("hormonal-sex");
+    var femaleBlock = document.getElementById("hormonal-female-fields");
+    var maleBlock = document.getElementById("hormonal-male-fields");
+    if (!sexSelect || !femaleBlock || !maleBlock) return;
+    function setBlock(block, visible) {
+      block.hidden = !visible;
+      block.querySelectorAll("input").forEach(function (input) {
+        input.disabled = !visible;
+      });
+      block.querySelectorAll("label").forEach(function (label) {
+        if (label.querySelector("input")) label.style.pointerEvents = visible ? "" : "none";
+      });
+    }
+    function updateHormonalFields() {
+      var sex = sexSelect.value;
+      setBlock(femaleBlock, sex === "female");
+      setBlock(maleBlock, sex === "male");
+    }
+    sexSelect.addEventListener("change", updateHormonalFields);
+    updateHormonalFields();
+  })();
+
   // --- Hormonal Predictor ---
   document.getElementById("form-hormonal-predictor").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    var sex = f.sex.value;
+    var showFemale = sex === "female";
+    var showMale = sex === "male";
     var data = {
       age: parseInt(f.age.value, 10),
-      sex: f.sex.value,
-      irregular_cycles: !!f.irregular_cycles.checked,
-      symptoms_acne: !!f.symptoms_acne.checked,
-      symptoms_hirsutism: !!f.symptoms_hirsutism.checked,
-      symptoms_heavy_bleeding: !!f.symptoms_heavy_bleeding.checked,
-      symptoms_pain: !!f.symptoms_pain.checked,
-      previous_tests_amh: !!f.previous_tests_amh.checked,
-      previous_tests_semen: !!f.previous_tests_semen.checked,
+      sex: sex,
+      irregular_cycles: showFemale ? !!f.irregular_cycles.checked : false,
+      symptoms_acne: showFemale ? !!f.symptoms_acne.checked : false,
+      symptoms_hirsutism: showFemale ? !!f.symptoms_hirsutism.checked : false,
+      symptoms_heavy_bleeding: showFemale ? !!f.symptoms_heavy_bleeding.checked : false,
+      symptoms_pain: showFemale ? !!f.symptoms_pain.checked : false,
+      previous_tests_amh: showFemale ? !!f.previous_tests_amh.checked : false,
+      previous_tests_semen: showMale ? !!f.previous_tests_semen.checked : false,
       use_ai_insight: !!f.use_ai_insight.checked
     };
-    if (f.cycle_length_days.value) data.cycle_length_days = parseInt(f.cycle_length_days.value, 10);
+    if (showFemale && f.cycle_length_days.value) data.cycle_length_days = parseInt(f.cycle_length_days.value, 10);
     if (f.years_trying.value) data.years_trying = parseFloat(f.years_trying.value);
 
     var box = document.getElementById("result-hormonal-predictor");
@@ -270,7 +415,7 @@
         if (r.suggest_semen_analysis) html += "• Suggest semen analysis\n";
         if (r.suggest_specialist) html += "• Suggest specialist visit\n";
         if (r.reasoning && r.reasoning.length) html += "\nReasoning:\n<ul><li>" + r.reasoning.map(escapeHtml).join("</li><li>") + "</li></ul>";
-        if (r.ai_insight) html += '<div class="ai-insight">' + escapeHtml(r.ai_insight) + "</div>";
+        if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
@@ -283,10 +428,19 @@
     var data = { use_ai_insight: !!f.use_ai_insight.checked };
     if (f.self_reported_sleep_hours.value) data.self_reported_sleep_hours = parseFloat(f.self_reported_sleep_hours.value);
     if (f.self_reported_stress_level.value) data.self_reported_stress_level = f.self_reported_stress_level.value;
-    if (f.self_reported_bmi.value) data.self_reported_bmi = parseFloat(f.self_reported_bmi.value);
+    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (bmi != null) data.self_reported_bmi = bmi;
 
     var fileInput = document.getElementById("visual-health-image");
+    var MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
     if (fileInput.files && fileInput.files[0]) {
+      var file = fileInput.files[0];
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        var box = document.getElementById("result-visual-health");
+        var msg = "File too large. Maximum upload size is 5 MB. Your file is " + (file.size / (1024 * 1024)).toFixed(1) + " MB.";
+        showResult(box, msg, true);
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function () {
         var b64 = reader.result;
@@ -294,7 +448,7 @@
         data.image_base64 = b64;
         submitVisualHealth(data);
       };
-      reader.readAsDataURL(fileInput.files[0]);
+      reader.readAsDataURL(file);
     } else {
       submitVisualHealth(data);
     }
@@ -307,11 +461,20 @@
 
     api("POST", "/api/v1/engagement/visual-health", data)
       .then(function (r) {
-        var html = "<h4>Wellness</h4>";
-        if (r.disclaimer) html += "<p>" + escapeHtml(r.disclaimer) + "</p>";
-        if (r.recommendations && r.recommendations.length) html += "\nRecommendations:\n<ul><li>" + r.recommendations.map(escapeHtml).join("</li><li>") + "</li></ul>";
-        if (r.wellness_indicators && Object.keys(r.wellness_indicators).length) html += "\nIndicators: " + escapeHtml(JSON.stringify(r.wellness_indicators));
-        if (r.ai_insight) html += '<div class="ai-insight">' + escapeHtml(r.ai_insight) + "</div>";
+        var html = "<h4>Your wellness overview</h4>";
+        if (r.summary) html += "<p class=\"result-summary\">" + escapeHtml(r.summary) + "</p>";
+        if (r.wellness_summary) html += "<p class=\"result-what-you-shared\"><strong>What you shared:</strong> " + escapeHtml(r.wellness_summary) + "</p>";
+        if (r.recommendations && r.recommendations.length) html += "<p class=\"result-section-title\"><strong>Suggestions for you</strong></p><ul><li>" + r.recommendations.map(escapeHtml).join("</li><li>") + "</li></ul>";
+        if (r.image_analysis || r.ai_insight) {
+          html += "<div class=\"ai-insight\"><h4>AI Insight</h4>";
+          if (r.image_analysis) {
+            var cleanAnalysis = r.image_analysis.replace(/\n+/g, " ").trim();
+            html += "<p class=\"image-analysis-text\"><strong>What we noticed from your photo</strong><br>" + escapeHtml(cleanAnalysis) + "</p>";
+          }
+          if (r.ai_insight) html += "<p>" + escapeHtml(r.ai_insight) + "</p>";
+          html += "</div>";
+        }
+        if (r.disclaimer) html += "<p class=\"result-disclaimer\">" + escapeHtml(r.disclaimer) + "</p>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
@@ -341,7 +504,7 @@
         if (r.primary_recommendation) html += "Primary: " + escapeHtml(r.primary_recommendation) + "\n";
         if (r.suggested_pathways && r.suggested_pathways.length) html += "\nSuggested: " + r.suggested_pathways.map(escapeHtml).join(", ") + "\n";
         if (r.reasoning && r.reasoning.length) html += "\nReasoning:\n<ul><li>" + r.reasoning.map(escapeHtml).join("</li><li>") + "</li></ul>";
-        if (r.ai_insight) html += '<div class="ai-insight">' + escapeHtml(r.ai_insight) + "</div>";
+        if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
@@ -372,7 +535,7 @@
         if (r.reasons && r.reasons.length) html += "\n\nReasons:\n<ul><li>" + r.reasons.map(escapeHtml).join("</li><li>") + "</li></ul>";
         if (r.missing_criteria && r.missing_criteria.length) html += "\nMissing criteria:\n<ul><li>" + r.missing_criteria.map(escapeHtml).join("</li><li>") + "</li></ul>";
         if (r.booking_message) html += "\n\n" + escapeHtml(r.booking_message);
-        if (r.ai_insight) html += '<div class="ai-insight">' + escapeHtml(r.ai_insight) + "</div>";
+        if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });

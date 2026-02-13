@@ -3,8 +3,9 @@ AI-driven engagement tools: fertility readiness, hormonal predictor,
 visual wellness (exploratory), treatment pathway, and Home IVF eligibility.
 Uses rule-based logic + optional MedGemma for explanations.
 """
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, Set, Tuple, TYPE_CHECKING
 import logging
+import re
 
 from app.models.engagement_schemas import (
     FertilityReadinessRequest,
@@ -23,6 +24,48 @@ if TYPE_CHECKING:
     from app.services.knowledge_engine import KnowledgeEngine
 
 logger = logging.getLogger(__name__)
+
+# Canonical fertility-relevant conditions and accepted variations (lowercase, no extra spaces).
+# Only recognized conditions are used in scoring; unrecognized entries are reported and not scored.
+MEDICAL_HISTORY_CANONICAL: List[Tuple[str, Set[str]]] = [
+    ("PCOS", {"pcos", "pcod", "pco", "pocs", "polycystic", "polycystic ovary", "polycystic ovarian", "polycystic ovarian syndrome"}),
+    ("Endometriosis", {"endometriosis", "endo"}),
+    ("Thyroid disorder", {"thyroid", "hypothyroid", "hyperthyroid", "hypothyroidism", "hyperthyroidism"}),
+    ("Diabetes", {"diabetes", "diabetic", "type 1", "type 2", "prediabetes"}),
+    ("Prior pelvic/fertility surgery", {"prior surgery", "surgery", "pelvic surgery", "fertility surgery", "laparoscopy", "laparoscopic"}),
+    ("Tubal factor", {"tubal", "tubal factor", "blocked tubes", "tubal blockage", "fallopian"}),
+]
+
+
+def _normalize_medical_history(raw_list: Optional[List[str]]) -> Tuple[Set[str], List[str]]:
+    """
+    Map free-text medical history entries to canonical conditions.
+    Returns (set of canonical names used in scoring, list of unrecognized raw entries).
+    Unrecognized entries are not used in scoring to avoid invalid data affecting results.
+    """
+    if not raw_list:
+        return set(), []
+    recognized: Set[str] = set()
+    unrecognized: List[str] = []
+    # Normalize input: strip, collapse spaces, lowercase for matching
+    for raw in raw_list:
+        s = re.sub(r"\s+", " ", (raw or "").strip()).lower()
+        if not s:
+            continue
+        matched = False
+        for canonical, aliases in MEDICAL_HISTORY_CANONICAL:
+            if s in aliases:
+                recognized.add(canonical)
+                matched = True
+                break
+            # Allow "condition" or "history of condition" (alias appears as word in user input)
+            if any(alias in s for alias in aliases if len(alias) >= 3):
+                recognized.add(canonical)
+                matched = True
+                break
+        if not matched:
+            unrecognized.append(raw.strip())
+    return recognized, unrecognized
 
 
 class EngagementService:
@@ -70,12 +113,11 @@ class EngagementService:
         elif req.age >= 30:
             score += 10
 
-        # Medical history
-        high_impact = {"pcos", "endometriosis", "thyroid", "diabetes", "prior surgery", "tubal"}
-        for h in (req.medical_history or []):
-            if any(k in h.lower() for k in high_impact):
-                score += 15
-                reasons.append(f"Medical history ({h}) may affect fertility; specialist review recommended.")
+        # Medical history: only recognized conditions affect the score; unrecognized entries are ignored
+        recognized_conditions, unrecognized_entries = _normalize_medical_history(req.medical_history)
+        for canonical in recognized_conditions:
+            score += 15
+            reasons.append(f"Medical history ({canonical}) may affect fertility; specialist review recommended.")
 
         # Lifestyle
         if req.lifestyle_smoking:
@@ -91,7 +133,7 @@ class EngagementService:
         if req.bmi is not None:
             if req.bmi < 18.5 or req.bmi > 30:
                 score += 15
-                reasons.append("BMI outside 18.5–30 may affect cycle regularity and outcomes.")
+                reasons.append("BMI below 18.5 or above 30 may affect cycle regularity and outcomes.")
 
         # Menstrual
         if req.menstrual_pattern.value == "irregular":
@@ -149,6 +191,8 @@ class EngagementService:
             next_steps=next_steps,
             guidance_text=guidance_text,
             ai_insight=ai_insight,
+            medical_history_recognized=sorted(recognized_conditions) if recognized_conditions else None,
+            medical_history_unrecognized=unrecognized_entries if unrecognized_entries else None,
         )
 
     # --- 2. Hormonal & Ovarian Health Predictor ---
@@ -161,7 +205,7 @@ class EngagementService:
         reasoning: List[str] = []
         when_to_test = ""
 
-        if req.sex in ("female", "couple"):
+        if req.sex == "female":
             if req.age >= 35 or req.irregular_cycles or req.symptoms_acne or req.symptoms_hirsutism:
                 suggest_amh = True
                 reasoning.append("AMH can help assess ovarian reserve; useful with age 35+, irregular cycles, or PCOS-related symptoms.")
@@ -169,7 +213,7 @@ class EngagementService:
                 suggest_amh = True
                 reasoning.append("Trying for a year or more without prior AMH suggests testing.")
 
-        if req.sex in ("male", "couple"):
+        if req.sex == "male":
             if req.years_trying is not None and req.years_trying >= 1 and not req.previous_tests_semen:
                 suggest_semen = True
                 reasoning.append("Semen analysis is often recommended when trying for 1+ year.")
@@ -177,7 +221,7 @@ class EngagementService:
         if req.years_trying is not None and req.years_trying >= 2:
             suggest_specialist = True
             reasoning.append("Trying for 2+ years warrants a specialist consultation.")
-        if req.age >= 38 and req.sex in ("female", "couple"):
+        if req.age >= 38 and req.sex == "female":
             suggest_specialist = True
             reasoning.append("Age 38+ suggests earlier specialist review.")
         if req.irregular_cycles and (req.symptoms_heavy_bleeding or req.symptoms_pain):
@@ -191,12 +235,23 @@ class EngagementService:
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
-            q = (
-                f"Very brief: when should someone consider AMH test or semen analysis for fertility? "
-                f"Age {req.age}, sex {req.sex}, irregular cycles {req.irregular_cycles}, years trying {req.years_trying}. "
-                "2–3 sentences, IVF/fertility context only."
-            )
-            ai_insight = self._get_ai_insight(q, req.language or "en")
+            try:
+                if req.sex == "male":
+                    q = (
+                        f"Very brief: when should a male consider semen analysis for fertility? "
+                        f"Age {req.age}, years trying {req.years_trying or 'not specified'}. "
+                        "Do NOT mention menstrual cycles, AMH, or ovarian reserve. 2–3 sentences, IVF/fertility context only."
+                    )
+                else:
+                    q = (
+                        f"Very brief: when should someone consider AMH test or semen analysis for fertility? "
+                        f"Age {req.age}, sex female, irregular cycles {req.irregular_cycles}, years trying {req.years_trying or 'not specified'}. "
+                        "2–3 sentences, IVF/fertility context only."
+                    )
+                ai_insight = self._get_ai_insight(q, req.language or "en")
+            except Exception as e:
+                logger.warning(f"AI insight for hormonal predictor failed: {e}", exc_info=True)
+                ai_insight = None
 
         return HormonalPredictorResponse(
             suggest_amh=suggest_amh,
@@ -212,35 +267,44 @@ class EngagementService:
     def visual_health(self, req: VisualHealthRequest) -> VisualHealthResponse:
         """Wellness and reproductive health awareness from self-reported inputs; image optional/future."""
         disclaimer = (
-            "This is for general wellness awareness only and is not a medical diagnosis. "
-            "Always consult a healthcare provider for medical advice."
+            "This is general wellness awareness only, not a medical diagnosis. "
+            "For any health or fertility concerns, please speak with your doctor or a healthcare provider."
         )
         indicators: dict = {}
         recommendations: List[str] = []
+        wellness_parts: List[str] = []
 
         if req.self_reported_sleep_hours is not None:
             indicators["sleep_hours"] = req.self_reported_sleep_hours
+            wellness_parts.append(f"{req.self_reported_sleep_hours} hours of sleep")
             if req.self_reported_sleep_hours < 6:
-                recommendations.append("Improving sleep (7–8 hours) can support overall and reproductive wellness.")
+                recommendations.append("Aim for 7–8 hours of sleep when you can—it can help your overall health and wellbeing.")
             elif req.self_reported_sleep_hours >= 7:
                 indicators["sleep_ok"] = True
 
         if req.self_reported_stress_level:
             indicators["stress_level"] = req.self_reported_stress_level
+            wellness_parts.append(f"{req.self_reported_stress_level} stress")
             if req.self_reported_stress_level == "high":
-                recommendations.append("Managing stress (e.g. relaxation, exercise) may benefit general and reproductive health.")
+                recommendations.append("Finding time to relax—e.g. gentle exercise, meditation, or time outdoors—can help you feel better and support your health.")
 
         if req.self_reported_bmi is not None:
             indicators["bmi"] = req.self_reported_bmi
+            wellness_parts.append(f"BMI {req.self_reported_bmi}")
             if req.self_reported_bmi < 18.5 or req.self_reported_bmi > 30:
-                recommendations.append("BMI in a healthy range (18.5–30) is often recommended for fertility; discuss with your doctor.")
+                recommendations.append("A healthy weight range often supports fertility; your doctor can help you with a plan that’s right for you.")
 
+        image_analysis = None
         if req.image_base64:
             indicators["image_provided"] = True
-            recommendations.append("Image-based analysis is exploratory; AI may provide general wellness observations (non-diagnostic).")
+            wellness_parts.append("a photo")
+
+        wellness_summary = None
+        if wellness_parts:
+            wellness_summary = "You shared: " + ", ".join(wellness_parts) + "."
 
         if not recommendations:
-            recommendations.append("Your inputs suggest general wellness focus; maintain a balanced lifestyle and see a doctor for any concerns.")
+            recommendations.append("Keeping a balanced lifestyle and talking to your doctor about any concerns is a good approach.")
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
@@ -249,7 +313,9 @@ class EngagementService:
                     "Based on this image, give 2 brief sentences of general wellness and lifestyle awareness that may support reproductive health. "
                     "Strictly non-diagnostic, for awareness only. Do not diagnose; suggest general wellness only. IVF/fertility context."
                 )
-                ai_insight = self._get_ai_insight(q, req.language or "en", image=req.image_base64)
+                image_analysis = self._get_ai_insight(q, req.language or "en", image=req.image_base64)
+                if image_analysis:
+                    recommendations.insert(0, "The note below is based on your photo and is for general awareness only—it is not a diagnosis.")
             else:
                 q = (
                     "Brief 2 sentences: general wellness and lifestyle tips that may support reproductive health. "
@@ -257,10 +323,20 @@ class EngagementService:
                 )
                 ai_insight = self._get_ai_insight(q, req.language or "en")
 
+        if image_analysis:
+            summary = "We’ve looked at what you shared. Below are general wellness ideas that may support your wellbeing. This is not a medical diagnosis."
+        elif wellness_parts:
+            summary = "Here are some simple wellness suggestions based on what you told us. For personalised advice, please consult your doctor."
+        else:
+            summary = "Here are some general wellness tips. For any health or fertility questions, your doctor is the best person to talk to."
+
         return VisualHealthResponse(
+            summary=summary,
             disclaimer=disclaimer,
+            wellness_summary=wellness_summary,
             wellness_indicators=indicators,
             recommendations=recommendations,
+            image_analysis=image_analysis,
             ai_insight=ai_insight,
         )
 
