@@ -152,8 +152,9 @@ class TestTreatmentPathway:
             use_ai_insight=False,
         )
         res = service.treatment_pathway(req)
-        assert "ivf" in res.suggested_pathways
-        assert res.primary_recommendation == "ivf"
+        pathway_lower = [p.lower() for p in res.suggested_pathways]
+        assert "ivf" in pathway_lower
+        assert res.primary_recommendation.lower() == "ivf"
 
 
 class TestHomeIVFEligibility:

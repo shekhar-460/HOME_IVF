@@ -211,15 +211,43 @@ async def shutdown_event():
         logger.warning(f"Failed to cleanup model on shutdown: {e}")
 
 
+def _serializable_validation_errors(errors: list) -> list:
+    """Convert validation errors to JSON-serializable dicts (e.g. drop ctx with ValueError)."""
+    out = []
+    for e in errors:
+        item = {
+            "type": e.get("type"),
+            "loc": e.get("loc"),
+            "msg": e.get("msg"),
+            "input": e.get("input"),
+        }
+        if "ctx" in e and e["ctx"]:
+            ctx = e["ctx"]
+            item["ctx"] = {k: str(v) if not _json_serializable(v) else v for k, v in ctx.items()}
+        out.append(item)
+    return out
+
+
+def _json_serializable(obj):
+    """True if obj is JSON-serializable (basic types)."""
+    try:
+        import json
+        json.dumps(obj)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle request validation errors"""
+    """Handle request validation errors with JSON-serializable detail."""
     logger.error(f"Invalid request: {exc.errors()}")
+    errors = _serializable_validation_errors(exc.errors())
     return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "detail": "Validation error",
-            "errors": exc.errors()
+            "errors": errors,
         }
     )
 

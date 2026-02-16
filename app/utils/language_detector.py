@@ -20,12 +20,14 @@ class LanguageDetector:
         'कर', 'हैं', 'था', 'थी', 'थे', 'रहे', 'रही', 'रहा', 'होगा', 'होगी'
     ]
     
-    # Hinglish: common Hindi words in Roman script (e.g. "ivf kya hai?", "batao")
+    # Hinglish: common Hindi words in Roman script (e.g. "ivf kya hai?", "ivf ka kharcha kitna hoga?")
     # One strong phrase or two+ such words suggests user wants Hindi reply.
     HINGLISH_PHRASES = [
         'kya hai', 'kya hota', 'kya hoti', 'kya hain', 'kyu hai', 'kaise hai',
         'batao', 'bataiye', 'bataye', 'samjhao', 'samjhaiye', 'samjhayen',
         'kya hai?', 'kya hota hai', 'matlab kya', 'kya matlab', 'kya kehte',
+        'kitna hoga', 'kitna hoga?', 'ka kitna', 'kharcha kitna', 'kitna hai',
+        'kaise hoga', 'kya hoga', 'kitna lagta', 'kitna aata',
     ]
     HINGLISH_WORDS = [
         'kya', 'hai', 'kyu', 'kaise', 'kab', 'kahan', 'kis', 'kaun', 'kuch',
@@ -33,6 +35,7 @@ class LanguageDetector:
         'nahi', 'nahin', 'thik', 'sahi', 'accha', 'achha', 'bilkul', 'ji',
         'hogi', 'hoga', 'karo', 'karein', 'chahiye', 'chahiye?', 'karna',
         'samajh', 'samjh', 'bata', 'bati', 'sab', 'bahut', 'zyada', 'kya?',
+        'ka', 'kitna', 'kharcha', 'lagta', 'aata',
     ]
     
     def detect_language(self, text: str) -> str:

@@ -279,6 +279,14 @@
   var chatInput = document.getElementById("chat-input");
   var conversationId = null;
 
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   function appendChat(role, text, suggestedActions) {
     var div = document.createElement("div");
     div.className = "chat-message " + role;
@@ -288,6 +296,11 @@
       suggestedActions.forEach(function (a) {
         if (a.type === "link" && a.url) {
           html += "<a href=\"" + escapeHtml(a.url) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"action-link\">" + escapeHtml(a.label) + "</a>";
+        } else if ((a.type === "quick_reply" || a.action === "faq_followup") && (a.label || (a.data && a.data.question))) {
+          var questionText = (a.data && a.data.question) || a.label || "";
+          if (questionText) {
+            html += "<button type=\"button\" class=\"action-suggestion\" data-suggestion-message=\"" + escapeAttr(questionText) + "\" title=\"Send this question\">" + escapeHtml(a.label || questionText) + "</button>";
+          }
         } else if (a.label) {
           html += "<span class=\"action-label\">" + escapeHtml(a.label) + "</span>";
         }
@@ -298,6 +311,37 @@
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
   }
+
+  function sendChatMessage(msg) {
+    if (!(msg && (msg = msg.trim()))) return;
+    appendChat("user", msg);
+    var btn = chatForm.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+    var langSelect = document.getElementById("translate-select");
+    var preferredLang = (langSelect && langSelect.value) ? langSelect.value : "en";
+    var chatLang = (preferredLang === "hi") ? "hi" : "en";
+    var body = { patient_id: getPatientId(), message: msg, language: chatLang };
+    if (conversationId) body.conversation_id = conversationId;
+    api("POST", "/api/v1/chat/message", body)
+      .then(function (res) {
+        if (res.conversation_id) conversationId = res.conversation_id;
+        var resp = res.response;
+        var text = (resp && resp.text) || (resp && resp.message) || res.message || (typeof resp === "string" ? resp : JSON.stringify(res));
+        var suggestedActions = (resp && resp.suggested_actions) || [];
+        appendChat("assistant", text, suggestedActions);
+      })
+      .catch(function (err) {
+        appendChat("assistant", "Error: " + err.message);
+      })
+      .finally(function () { if (btn) btn.disabled = false; });
+  }
+
+  chatMessages.addEventListener("click", function (e) {
+    var btn = e.target && e.target.closest && e.target.closest("button.action-suggestion");
+    if (!btn) return;
+    var message = btn.getAttribute("data-suggestion-message");
+    if (message) sendChatMessage(message);
+  });
 
   function escapeHtml(s) {
     var div = document.createElement("div");
@@ -317,30 +361,8 @@
     e.preventDefault();
     var msg = (chatInput.value || "").trim();
     if (!msg) return;
-    appendChat("user", msg);
     chatInput.value = "";
-    var btn = chatForm.querySelector('button[type="submit"]');
-    btn.disabled = true;
-
-    // Use Translate dropdown as preferred response language (read at submit so it's always current)
-    var langSelect = document.getElementById("translate-select");
-    var preferredLang = (langSelect && langSelect.value) ? langSelect.value : "en";
-    var chatLang = (preferredLang === "hi") ? "hi" : "en";
-    var body = { patient_id: getPatientId(), message: msg, language: chatLang };
-    if (conversationId) body.conversation_id = conversationId;
-
-    api("POST", "/api/v1/chat/message", body)
-      .then(function (res) {
-        if (res.conversation_id) conversationId = res.conversation_id;
-        var resp = res.response;
-        var text = (resp && resp.text) || (resp && resp.message) || res.message || (typeof resp === "string" ? resp : JSON.stringify(res));
-        var suggestedActions = (resp && resp.suggested_actions) || [];
-        appendChat("assistant", text, suggestedActions);
-      })
-      .catch(function (err) {
-        appendChat("assistant", "Error: " + err.message);
-      })
-      .finally(function () { btn.disabled = false; });
+    sendChatMessage(msg);
   });
 
   // --- Fertility Readiness: medical history dropdown + Other ---

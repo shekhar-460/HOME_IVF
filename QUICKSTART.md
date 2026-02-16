@@ -101,7 +101,7 @@ pytest tests/ -v
 
 ## Chat languages
 
-The chat supports **English** and **Hindi**. Language is auto-detected, including **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*). The bot replies in the same language.
+The chat supports **English** and **Hindi**. Language is auto-detected, including **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*, *ivf cost kitna hai*). The bot replies in the same language. When the answer is in Hindi, the disclaimer and suggestion buttons (follow-ups, “Get professional help”) are also shown in Hindi so the full response stays in one language.
 
 ---
 

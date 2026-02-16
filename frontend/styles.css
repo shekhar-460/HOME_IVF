@@ -444,6 +444,24 @@ body {
   background: var(--accent);
   color: #fff;
 }
+.chat-message .action-suggestion {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid rgba(196, 92, 62, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.chat-message .action-suggestion:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
 
 /* --- Footer --- */
 .footer {

@@ -4,6 +4,7 @@
     "answer": "In vitro fertilisation (IVF) is a fertility treatment where eggs are collected from the ovaries, fertilised with sperm in a laboratory, and the resulting embryo is transferred into the uterus. It is usually recommended when simpler treatments have not worked or are not suitable.",
     "question_hi": "आईवीएफ क्या है?",
     "answer_hi": "इन विट्रो फर्टिलाइजेशन (IVF) एक प्रजनन उपचार है जिसमें अंडाशय से अंडे निकाले जाते हैं, लैब में शुक्राणु से मिलाए जाते हैं और बने हुए भ्रूण को गर्भाशय में ट्रांसफर किया जाता है। यह तब उपयोग किया जाता है जब सरल उपचार काम न करें या उपयुक्त न हों।",
+    "question_hinglish": "IVF kya hai? ivf kya hota hai?",
     "category": "basics",
     "tags": ["ivf", "basics", "treatment_overview"]
   },
@@ -12,6 +13,7 @@
     "answer": "IVF may be considered for couples with blocked or damaged fallopian tubes, severe male factor infertility, long‑term unexplained infertility, failed IUI cycles, or when using donor eggs or sperm. The exact decision should always be made with a fertility specialist.",
     "question_hi": "किसे IVF पर विचार करना चाहिए?",
     "answer_hi": "IVF पर आमतौर पर तब विचार किया जाता है जब फैलोपियन ट्यूब ब्लॉक या खराब हों, पुरुष पक्ष में गंभीर समस्या हो, लंबे समय से कारण न मिल रहा हो, कई IUI साइकल असफल हों या डोनर अंडाणु या शुक्राणु की आवश्यकता हो। अंतिम निर्णय हमेशा फर्टिलिटी विशेषज्ञ के साथ मिलकर लिया जाता है।",
+    "question_hinglish": "IVF kaun consider kare? kis ko IVF lena chahiye?",
     "category": "basics",
     "tags": ["ivf", "indications", "eligibility"]
   },
@@ -20,6 +22,7 @@
     "answer": "A typical IVF cycle includes: 1) ovarian stimulation with hormone injections, 2) egg retrieval under ultrasound guidance, 3) fertilisation of eggs with sperm in the lab, 4) embryo culture and selection, and 5) embryo transfer into the uterus. A pregnancy test is done about 12–14 days after transfer.",
     "question_hi": "एक IVF साइकल के मुख्य चरण क्या हैं?",
     "answer_hi": "एक सामान्य IVF साइकल में ये चरण होते हैं: 1) हार्मोन इंजेक्शन से अंडाशय को स्टिम्युलेट करना, 2) अल्ट्रासाउंड गाइडेंस में एग पिक‑अप (अंडे निकालना), 3) लैब में अंडों को शुक्राणु से मिलाकर फर्टिलाइजेशन, 4) भ्रूण को कुछ दिनों तक कल्चर और चयन, 5) चुने हुए भ्रूण को गर्भाशय में ट्रांसफर करना। ट्रांसफर के 12–14 दिन बाद प्रेग्नेंसी टेस्ट किया जाता है।",
+    "question_hinglish": "IVF cycle ke main steps kya hain? ivf process kaise hota hai?",
     "category": "process",
     "tags": ["ivf", "steps", "cycle"]
   },
@@ -28,14 +31,25 @@
     "answer": "From the start of ovarian stimulation injections to the pregnancy test, a fresh IVF cycle usually takes around 4–6 weeks. Some planning, investigations, and counselling may be needed before this.",
     "question_hi": "एक IVF साइकल में कितना समय लगता है?",
     "answer_hi": "ओवरी स्टिम्यूलेशन इंजेक्शन शुरू होने से लेकर प्रेग्नेंसी टेस्ट तक आमतौर पर एक फ्रेश IVF साइकल में लगभग 4–6 सप्ताह लगते हैं। इससे पहले कुछ जांचें और काउंसलिंग की आवश्यकता हो सकती है।",
+    "question_hinglish": "IVF cycle mein kitna time lagta hai? ivf kitne din mein hota hai?",
     "category": "process",
     "tags": ["timeline", "cycle_length"]
+  },
+  {
+    "question": "How much does IVF cost? What is the cost of IVF in India?",
+    "answer": "IVF cost in India typically ranges from ₹1,00,000 to ₹2,50,000 or more per cycle, depending on the clinic, city, medicines, and whether you need ICSI or donor eggs. This is an approximate range; get a detailed quote from your clinic. Costs are usually in Indian Rupees (₹).",
+    "question_hi": "आईवीएफ का खर्च कितना होता है? भारत में IVF की लागत क्या है?",
+    "answer_hi": "भारत में आईवीएफ का खर्च आमतौर पर प्रति साइकल लगभग ₹1,00,000 से ₹2,50,000 या अधिक हो सकता है, जो क्लिनिक, शहर, दवाइयों और ICSI या डोनर अंडों की जरूरत पर निर्भर करता है। यह अनुमानित रेंज है; सही लागत के लिए अपने क्लिनिक से कोटेशन लें। लागत भारतीय रुपये (₹) में होती है।",
+    "question_hinglish": "IVF ka kharcha kitna hoga? ivf ki cost kitni hai? india mein ivf ka price kya hai?",
+    "category": "costs",
+    "tags": ["ivf", "cost", "price", "rupees", "india"]
   },
   {
     "question": "What is Home IVF?",
     "answer": "Home IVF is a model where parts of the IVF journey, such as counselling, monitoring, and some injections, can be done closer to home with digital support, while critical steps like egg retrieval and embryo culture still happen in a fully equipped IVF centre. It is designed to reduce travel burden while keeping safety.",
     "question_hi": "होम IVF क्या है?",
     "answer_hi": "होम IVF ऐसा मॉडल है जिसमें IVF यात्रा के कुछ हिस्से जैसे काउंसलिंग, मॉनिटरिंग और कुछ इंजेक्शन घर के पास या घर पर डिजिटल सपोर्ट के साथ किए जा सकते हैं, जबकि अंडे निकालना और भ्रूण की लैब प्रक्रिया पूरी तरह सुसज्जित IVF सेंटर में ही होती है। इसका उद्देश्य यात्रा का बोझ कम करना और सुरक्षा बनाए रखना है।",
+    "question_hinglish": "Home IVF kya hai? home ivf kaise kaam karta hai?",
     "category": "home_ivf",
     "tags": ["home_ivf", "model", "convenience"]
   },
@@ -44,6 +58,7 @@
     "answer": "Suitability for Home IVF depends on age, overall health, ovarian reserve, semen parameters, and any medical conditions that need closer monitoring. The Home IVF eligibility checker in this app can give an initial indication, but final suitability must be confirmed by a fertility specialist.",
     "question_hi": "क्या मैं होम IVF के लिए योग्य हूं?",
     "answer_hi": "होम IVF की पात्रता उम्र, समग्र स्वास्थ्य, ओवेरियन रिजर्व, वीर्य जांच और ऐसी किसी भी मेडिकल स्थिति पर निर्भर करती है जिसे नज़दीकी मॉनिटरिंग की जरूरत हो। इस ऐप का Home IVF eligibility checker केवल प्रारंभिक संकेत देता है; अंतिम निर्णय फर्टिलिटी विशेषज्ञ द्वारा ही लिया जाता है।",
+    "question_hinglish": "Kya main Home IVF ke liye eligible hoon? home ivf eligibility kaise check karein?",
     "category": "home_ivf",
     "tags": ["home_ivf", "eligibility", "checker"]
   },
@@ -52,6 +67,7 @@
     "answer": "Before IVF, common tests include ovarian reserve tests (such as AMH and antral follicle count), hormone profile, semen analysis, ultrasound of the uterus and ovaries, and infection screening. Additional tests may be suggested based on your history.",
     "question_hi": "IVF से पहले आमतौर पर कौन‑कौन सी जांचें की जाती हैं?",
     "answer_hi": "IVF से पहले आमतौर पर ओवेरियन रिजर्व (जैसे AMH और एन्ट्रल फॉलिकल काउंट), हार्मोन प्रोफाइल, वीर्य जांच, गर्भाशय और अंडाशय का अल्ट्रासाउंड, और संक्रमण की स्क्रीनिंग की जाती है। आपकी मेडिकल हिस्ट्री के आधार पर अतिरिक्त जांचें भी सुझाई जा सकती हैं।",
+    "question_hinglish": "IVF se pehle kaun si tests hoti hain? ivf se pehle kya kya check karna padta hai?",
     "category": "pre_treatment",
     "tags": ["tests", "amh", "semen_analysis"]
   },
@@ -60,6 +76,7 @@
     "answer": "Anti-Müllerian Hormone (AMH) is a blood test that gives an estimate of ovarian reserve (how many eggs are likely left). It does not predict natural pregnancy on its own, but helps decide the right dose of stimulation medicines and timing for fertility treatments.",
     "question_hi": "AMH क्या है और यह क्यों ज़रूरी है?",
     "answer_hi": "एंटी म्यूलरियन हार्मोन (AMH) एक रक्त जांच है जो ओवेरियन रिजर्व (लगभग कितने अंडे बचे हैं) का आकलन देती है। यह अकेले प्राकृतिक गर्भधारण की भविष्यवाणी नहीं करता, लेकिन स्टिम्युलेशन दवाओं की खुराक और फर्टिलिटी ट्रीटमेंट की योजना बनाने में मदद करता है।",
+    "question_hinglish": "AMH kya hai aur kyu important hai? amh test kya hota hai?",
     "category": "testing",
     "tags": ["amh", "ovarian_reserve", "hormonal_predictor"]
   },
@@ -68,6 +85,7 @@
     "answer": "Semen analysis measures sperm count, motility, and morphology. It helps determine whether IUI, IVF, or ICSI is more suitable and whether lifestyle changes or further urology evaluation are needed.",
     "question_hi": "फर्टिलिटी जांच में वीर्य परीक्षण कैसे उपयोगी है?",
     "answer_hi": "वीर्य परीक्षण में शुक्राणुओं की संख्या, गतिशीलता और आकार (मॉर्फोलॉजी) देखी जाती है। इससे यह तय करने में मदद मिलती है कि IUI, IVF या ICSI में से कौन सा विकल्प ज़्यादा उपयुक्त है और क्या जीवनशैली में बदलाव या आगे यूरोलॉजिकल जांच की ज़रूरत है।",
+    "question_hinglish": "Semen analysis fertility check mein kaise use hota hai? sperm test kyu karte hain?",
     "category": "testing",
     "tags": ["semen_analysis", "male_factor"]
   },
@@ -76,6 +94,7 @@
     "answer": "Maintaining a healthy weight, stopping smoking, limiting alcohol, regular moderate exercise, managing stress, and getting adequate sleep can all support fertility. These changes cannot guarantee pregnancy but improve overall reproductive health.",
     "question_hi": "फर्टिलिटी बेहतर करने के लिए कौन से जीवनशैली बदलाव मददगार हो सकते हैं?",
     "answer_hi": "संतुलित वजन बनाए रखना, धूम्रपान छोड़ना, शराब को सीमित करना, नियमित मध्यम व्यायाम, तनाव प्रबंधन और पर्याप्त नींद लेना प्रजनन स्वास्थ्य को सपोर्ट कर सकते हैं। ये बदलाव गर्भधारण की गारंटी नहीं देते लेकिन समग्र प्रजनन स्वास्थ्य को बेहतर बनाते हैं।",
+    "question_hinglish": "Fertility improve karne ke liye kya lifestyle changes karein? ivf ke liye kya khayein?",
     "category": "lifestyle",
     "tags": ["lifestyle", "exercise", "smoking", "alcohol", "sleep", "stress"]
   },
@@ -84,6 +103,7 @@
     "answer": "Most patients experience mild side effects such as injection site discomfort, bloating, mood changes, or headaches. Rarely, ovarian hyperstimulation syndrome (OHSS) can occur, which needs closer medical monitoring. Your clinic will explain warning signs and when to call.",
     "question_hi": "IVF दवाओं के आम साइड इफेक्ट क्या हैं?",
     "answer_hi": "अधिकांश मरीजों को हल्के साइड इफेक्ट जैसे इंजेक्शन की जगह दर्द, पेट फूलना, मूड में बदलाव या सिरदर्द हो सकते हैं। कभी‑कभी ओवेरियन हाइपरस्टिम्युलेशन सिंड्रोम (OHSS) भी हो सकता है, जिसके लिए नज़दीकी मेडिकल मॉनिटरिंग की ज़रूरत पड़ती है। आपका क्लिनिक चेतावनी संकेत और कब संपर्क करना है, यह सब समझाएगा।",
+    "question_hinglish": "IVF ki dawaon ke side effects kya hain? ivf injections ke nuksan?",
     "category": "risks",
     "tags": ["side_effects", "ohss", "medicines"]
   },
@@ -92,6 +112,7 @@
     "answer": "Success rates vary with age, cause of infertility, egg and sperm quality, and clinic protocols. Younger patients generally have higher success per cycle. Your specialist can quote centre‑specific rates and explain what they mean in your situation.",
     "question_hi": "IVF की सफलता दर क्या होती है?",
     "answer_hi": "IVF की सफलता दर उम्र, बांझपन के कारण, अंडे और शुक्राणु की गुणवत्ता तथा क्लिनिक की प्रोटोकॉल पर निर्भर करती है। कम उम्र में प्रति साइकल सफलता आम तौर पर अधिक होती है। आपका विशेषज्ञ सेंटर‑स्पेसिफिक दरें बता सकता है और आपके केस में उनका क्या मतलब है, यह समझा सकता है।",
+    "question_hinglish": "IVF ki success rate kya hoti hai? ivf mein pregnancy chance kitna?",
     "category": "success_rates",
     "tags": ["success_rate", "age", "prognosis"]
   },
@@ -100,6 +121,7 @@
     "answer": "Most of the process is tolerable for patients. Injections may cause mild discomfort, and egg retrieval is usually done under sedation or anaesthesia so that you do not feel pain during the procedure.",
     "question_hi": "क्या IVF दर्दनाक होता है?",
     "answer_hi": "IVF की अधिकांश प्रक्रिया मरीजों के लिए सहने योग्य होती है। इंजेक्शनों से हल्का दर्द या जलन हो सकती है और एग रिट्रीवल आमतौर पर सिडेशन या एनेस्थीसिया में किया जाता है ताकि प्रक्रिया के दौरान आपको दर्द महसूस न हो।",
+    "question_hinglish": "Kya IVF painful hota hai? ivf mein dard hota hai?",
     "category": "experience",
     "tags": ["pain", "experience", "procedure"]
   },
@@ -108,6 +130,7 @@
     "answer": "No fertility treatment, including IVF, can guarantee pregnancy. IVF improves the chances for many couples, but multiple cycles may be needed and outcomes are influenced by age, diagnosis, and egg and sperm quality.",
     "question_hi": "क्या IVF से गर्भधारण की गारंटी मिलती है?",
     "answer_hi": "कोई भी फर्टिलिटी ट्रीटमेंट, जिसमें IVF भी शामिल है, गर्भधारण की 100% गारंटी नहीं दे सकता। IVF कई जोड़ों के लिए संभावना बढ़ा सकता है, लेकिन कभी‑कभी एक से अधिक साइकल की जरूरत पड़ती है और परिणाम उम्र, निदान तथा अंडे‑शुक्राणु की गुणवत्ता पर निर्भर करते हैं।",
+    "question_hinglish": "Kya IVF se pregnancy guarantee hoti hai? ivf hundred percent kaam karta hai?",
     "category": "expectations",
     "tags": ["expectations", "limitations"]
   },
@@ -116,6 +139,7 @@
     "answer": "Embryo freezing (cryopreservation) allows good quality embryos that are not transferred in the first cycle to be stored for future use. This reduces the need for repeat stimulation and egg retrieval if you need another transfer later.",
     "question_hi": "भ्रूण फ्रीजिंग क्या है और यह क्यों की जाती है?",
     "answer_hi": "भ्रूण फ्रीजिंग (क्रायोप्रेज़र्वेशन) में अच्छे गुणवत्तावाले भ्रूण जो पहली साइकल में ट्रांसफर नहीं किए जाते, उन्हें भविष्य के लिए सुरक्षित रखा जाता है। इससे दोबारा स्टिम्यूलेशन और एग रिट्रीवल की जरूरत कम हो सकती है यदि बाद में एक और ट्रांसफर की आवश्यकता हो।",
+    "question_hinglish": "Embryo freezing kya hai aur kyu ki jati hai? embryo freeze kyu karte hain?",
     "category": "embryology",
     "tags": ["embryo_freezing", "cryopreservation"]
   },
@@ -124,8 +148,8 @@
     "answer": "Emotional and psychological support are very important during IVF. Many centres offer counselling, support groups, and access to nurses or care coordinators. Discuss your worries openly with your team so they can guide you.",
     "question_hi": "IVF यात्रा के दौरान किस प्रकार का सपोर्ट उपलब्ध होता है?",
     "answer_hi": "IVF के दौरान भावनात्मक और मनोवैज्ञानिक सपोर्ट बहुत महत्वपूर्ण होता है। कई सेंटर काउंसलिंग, सपोर्ट ग्रुप और नर्स या केयर कोऑर्डिनेटर तक पहुंच उपलब्ध कराते हैं। अपनी चिंताओं के बारे में टीम से खुलकर बात करें ताकि वे आपको सही मार्गदर्शन दे सकें।",
+    "question_hinglish": "IVF journey mein kya support milta hai? ivf ke dauran counselling?",
     "category": "support",
     "tags": ["counselling", "emotional_support", "care_team"]
   }
 ]
-

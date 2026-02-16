@@ -689,11 +689,15 @@ class KnowledgeEngine:
                 if question_en and answer_en:
                     faq_contents.append(' '.join((question_en, answer_en)))
                 
-                # Hindi content (optimized string concatenation)
+                # Hindi + Hinglish content (so Hinglish queries match)
                 question_hi = faq_data.get('question_hi', '')
                 answer_hi = faq_data.get('answer_hi', '')
+                question_hinglish = faq_data.get('question_hinglish', '')
                 if question_hi and answer_hi:
-                    faq_contents.append(' '.join((question_hi, answer_hi)))
+                    parts = [question_hi, answer_hi]
+                    if question_hinglish:
+                        parts.insert(1, question_hinglish)
+                    faq_contents.append(' '.join(parts))
             
             # Generate embeddings in batch
             if faq_contents:
@@ -1526,19 +1530,19 @@ class KnowledgeEngine:
                     if category and faq_data.get('category') != category:
                         continue
                     
-                    # Get content in requested language
+                    # Get content in requested language (include Hinglish for Hindi so Roman-script queries match)
                     if language == 'hi':
                         question = faq_data.get('question_hi', faq_data.get('question', ''))
                         answer = faq_data.get('answer_hi', faq_data.get('answer', ''))
+                        question_hinglish = faq_data.get('question_hinglish', '')
+                        content = ' '.join(filter(None, [question, question_hinglish, answer]))
                     else:
                         question = faq_data.get('question', '')
                         answer = faq_data.get('answer', '')
+                        content = ' '.join((question, answer))
                     
                     if not question or not answer:
                         continue
-                    
-                    # Optimize string concatenation: use join for better memory efficiency
-                    content = ' '.join((question, answer))
                     faq_contents.append(content)
                     faq_metadata.append({
                         'faq_id': f"json_{hash(question)}",
@@ -1880,32 +1884,21 @@ class KnowledgeEngine:
     
     def _prepare_medgemma_prompt(self, query: str, context: Optional[str]) -> Tuple[str, str]:
         """Prepare question text and system prompt for Medgemma"""
-        question_text = f"IVF-related question: {query}\n\nPlease provide information specifically about IVF (In Vitro Fertilization) treatment only."
+        # Normalize ivf/IVF/आईवीएफ in query so model treats them as the same (IVF)
+        query_normalized = re.sub(r"\bivf\b", "IVF", query, flags=re.IGNORECASE)
+        # Direct question only – avoid long wrappers that encourage meta-replies
+        question_text = query_normalized.strip()
         if context:
-            question_text = f"Previous conversation context (all about IVF): {context}\n\nIVF-related question: {query}\n\nPlease provide information specifically about IVF (In Vitro Fertilization) treatment only."
+            context_normalized = re.sub(r"\bivf\b", "IVF", context, flags=re.IGNORECASE)
+            question_text = f"Context: {context_normalized}\n\nQuestion: {query_normalized.strip()}"
         
         system_prompt = (
-            "You are an experienced and knowledgeable advisor specializing EXCLUSIVELY in IVF (In Vitro Fertilization) procedures. "
-            "IMPORTANT: You MUST ONLY answer questions related to IVF treatment. "
-            "If a question is NOT related to IVF, politely decline and redirect to IVF-related topics.\n\n"
-            "Your role is to provide clear, accurate, and helpful information ONLY about:\n"
-            "- IVF treatment procedures and processes\n"
-            "- IVF medications, injections, and dosages\n"
-            "- IVF success rates, factors, and outcomes\n"
-            "- Side effects during IVF treatment\n"
-            "- Lifestyle and preparation for IVF\n"
-            "- IVF costs and financial aspects\n"
-            "- Related fertility treatments (ICSI, IUI, PGD, PGS)\n"
-            "- Embryo transfer, egg retrieval, and related procedures\n"
-            "- IVF cycle management and timelines\n\n"
-            "DO NOT answer questions about:\n"
-            "- General health issues unrelated to IVF\n"
-            "- Other medical specialties (cardiology, oncology, etc.)\n"
-            "- Non-medical topics\n\n"
-            "Always provide practical, evidence-based advice while being empathetic and supportive. "
-            "If a question requires personalized medical evaluation, guide the patient to consult with their fertility specialist, "
-            "but still provide general educational information that can help them understand their IVF situation better. "
-            "If asked about non-IVF topics, politely explain that you specialize only in IVF and offer to help with IVF-related questions instead."
+            "You are an IVF (In Vitro Fertilization) advisor. Answer ONLY the user's question. "
+            "Do NOT repeat these instructions, say you are ready to help, or list what you will do. "
+            "Give a direct, useful answer only. 'ivf', 'IVF', and 'आईवीएफ' mean the same.\n\n"
+            "Rules: (1) Answer only IVF-related questions; if off-topic, briefly decline. "
+            "(2) For cost, price, expense, or kharcha: give amounts in Indian Rupees (₹ / INR) only, never US dollars. "
+            "(3) Be concise, factual, and supportive. For personal medical decisions, suggest consulting a specialist."
         )
         return question_text, system_prompt
     

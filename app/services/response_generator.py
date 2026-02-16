@@ -1,6 +1,7 @@
 """
 Response Generator - Generate natural responses in multiple languages
 """
+import re
 from typing import Dict, Optional, List, Tuple
 from app.services.intent_classifier import IntentClassifier
 from app.services.knowledge_engine import KnowledgeEngine
@@ -173,12 +174,13 @@ class ResponseGenerator:
                 top_result = search_results[0]
                 response_text = top_result.get('answer', top_result.get('content', ''))
                 category = top_result.get('category') or 'general'
+                response_lang = self._response_language(response_text, language)
                 
-                # Generate follow-up questions
+                # Generate follow-up questions (same language as answer)
                 if settings.ENABLE_FOLLOWUPS:
                     followups = self.followup_generator.generate_followups(
                         category=category,
-                        language=language,
+                        language=response_lang,
                         answer=response_text
                     )
                     for followup in followups:
@@ -189,11 +191,11 @@ class ResponseGenerator:
                             data={'question': followup}
                         ))
                 
-                # Add proactive suggestions
+                # Add proactive suggestions (same language as answer)
                 if settings.ENABLE_PROACTIVE_SUGGESTIONS:
                     proactive = self.proactive_suggestions.get_suggestions(
                         current_topic=category,
-                        language=language,
+                        language=response_lang,
                         conversation_history=conversation_context.get('history', [])
                     )
                     suggested_actions.extend(proactive)
@@ -243,12 +245,13 @@ class ResponseGenerator:
             if search_results and search_results[0]['similarity'] >= settings.MIN_CONFIDENCE_SCORE:
                 response_text = search_results[0].get('answer', search_results[0].get('content', ''))
                 category = search_results[0].get('category') or 'general'
+                response_lang = self._response_language(response_text, language)
                 
-                # Add follow-ups and suggestions for generic responses too
+                # Add follow-ups and suggestions (same language as answer)
                 if settings.ENABLE_FOLLOWUPS:
                     followups = self.followup_generator.generate_followups(
                         category=category,
-                        language=language,
+                        language=response_lang,
                         answer=response_text
                     )
                     for followup in followups[:2]:  # Limit to 2 for generic responses
@@ -271,17 +274,18 @@ class ResponseGenerator:
                     else:
                         response_text = self._get_template('no_results', language)
         
-        # Always add HomeIVF link to Actions section
-        homeivf_action = self._get_homeivf_link_action(language)
+        # Always add HomeIVF link to Actions section (use answer language when answer is in Hindi)
+        effective_language = self._response_language(response_text or '', language)
+        homeivf_action = self._get_homeivf_link_action(effective_language)
         # Check if HomeIVF link is not already in suggested_actions
         if not any(action.url == settings.HOMEIVF_WEBSITE_URL for action in suggested_actions):
             suggested_actions.append(homeivf_action)
         
-        # Create response object
+        # Create response object (language matches answer so UI is monolingual)
         bot_response = BotResponse(
             text=response_text,
             type='text',
-            language=language,
+            language=effective_language,
             suggested_actions=suggested_actions,
             related_content=related_content,
             confidence=confidence
@@ -372,6 +376,19 @@ class ResponseGenerator:
             return translations.get(label, translation_service.translate_to_hindi(label))
         return label
     
+    def _response_language(self, answer_text: str, requested_language: str) -> str:
+        """
+        Use answer language for disclaimer and suggestions so the full response is
+        monolingual when possible. If the answer is in Hindi (Devanagari), use Hindi
+        for disclaimer and suggestion labels.
+        """
+        if not answer_text:
+            return requested_language
+        # Devanagari script range
+        if re.search(r'[\u0900-\u097F]', answer_text):
+            return 'hi'
+        return requested_language
+
     def _get_urgent_message(self, language: str) -> str:
         """Get urgent escalation message"""
         if language == 'hi':
@@ -490,11 +507,13 @@ class ResponseGenerator:
                 if medgemma_answer:
                     logger.debug(f"Medgemma answer generated ({len(medgemma_answer)} chars)")
                     response_text = medgemma_answer
+                    # Use answer language for disclaimer and suggestions so response is monolingual
+                    response_lang = self._response_language(medgemma_answer, language)
                     
-                    # Add note that this is from AI model
+                    # Add note that this is from AI model (same language as answer)
                     ai_note = (
                         "\n\n(यह जानकारी AI मॉडल से प्राप्त की गई है। कृपया अपने डॉक्टर से भी परामर्श करें।)"
-                        if language == 'hi'
+                        if response_lang == 'hi'
                         else "\n\n(This information is generated by an AI model. Please also consult with your doctor.)"
                     )
                     response_text += ai_note
@@ -502,11 +521,11 @@ class ResponseGenerator:
                     # Extract category from query/intent for generating follow-ups and suggestions
                     inferred_category = self._infer_category_from_query(message, intent)
                     
-                    # Generate follow-up questions
+                    # Generate follow-up questions (same language as answer)
                     if settings.ENABLE_FOLLOWUPS:
                         followups = self.followup_generator.generate_followups(
                             category=inferred_category,
-                            language=language,
+                            language=response_lang,
                             answer=medgemma_answer
                         )
                         for followup in followups[:max_followups]:
@@ -517,11 +536,11 @@ class ResponseGenerator:
                                 data={'question': followup}
                             ))
                     
-                    # Add proactive suggestions
+                    # Add proactive suggestions (same language as answer)
                     if settings.ENABLE_PROACTIVE_SUGGESTIONS:
                         proactive = self.proactive_suggestions.get_suggestions(
                             current_topic=inferred_category,
-                            language=language,
+                            language=response_lang,
                             conversation_history=conversation_context.get('history', [])
                         )
                         suggested_actions.extend(proactive[:max_followups])

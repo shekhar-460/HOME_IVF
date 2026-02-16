@@ -30,7 +30,7 @@ A **FastAPI** application for multilingual IVF patient education and pre-consult
 The system has two main pillars:
 
 1. **Conversational patient education (chat)**  
-   English and Hindi chat with intent classification, semantic search over FAQs (from `knowledge_base/sample_faqs.json`), and optional **MedGemma-4b-it** fallback for IVF-related questions. **Language is auto-detected** (including **Hinglish**—Roman-script Hindi, e.g. *ivf kya hai?*), and the bot **replies in the same language**. All answers are constrained by an **IVF guardrail**. Translation (e.g. MedGemma output to Hindi) uses **googletrans**.
+   English and Hindi chat with intent classification, semantic search over FAQs (from `knowledge_base/sample_faqs.json`), and optional **MedGemma-4b-it** fallback for IVF-related questions. **Language is auto-detected** (including **Hinglish**—Roman-script Hindi, e.g. *ivf kya hai?*, *ivf cost kitna hai*), and the bot **replies in the same language**. The **response language** (disclaimer, follow-up and suggestion buttons, “Get professional help” link) is aligned with the answer content so the full reply is monolingual when the answer is in Hindi. All answers are constrained by an **IVF guardrail**. Translation (e.g. MedGemma output to Hindi) uses **googletrans**.
 
 2. **AI engagement tools (REST)**  
    Five standalone POST APIs for pre-consultation use:
@@ -48,9 +48,9 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
 
 | Area | Description |
 |------|-------------|
-| **Languages** | English (`en`), Hindi (`hi`), and Hinglish (Roman-script Hindi); auto-detection and reply in same language |
+| **Languages** | English (`en`), Hindi (`hi`), and Hinglish (Roman-script Hindi); auto-detection; reply, disclaimer, and suggestion labels follow answer language |
 | **Chat** | Create conversation, send message, get history, WebSocket; intent classification and escalation |
-| **Knowledge** | Semantic search over JSON FAQs; optional MedGemma-4b-it fallback; IVF-only guardrail |
+| **Knowledge** | Semantic search over JSON FAQs; optional MedGemma-4b-it fallback; IVF-only guardrail (incl. Hinglish “ivf kya hai?”) |
 | **Translation** | googletrans (3.1.0a0): chat en ↔ hi; **page translation** (header dropdown) for 14+ languages |
 | **Professional help** | [HomeIVF](https://homeivf.com/) link and phone in chat suggestions, escalation message, and footer |
 | **Engagement** | Five POST endpoints under `/api/v1/engagement/` (see [Engagement Tools](#engagement-tools)) |
@@ -165,6 +165,7 @@ HOME IVF/
 ├── frontend/                     # Static UI: index.html, app.js, styles.css (chat, tools, translate dropdown)
 ├── knowledge_base/               # Optional: sample_faqs.json (FAQ source if present)
 ├── tests/
+│   ├── README.md                 # Test overview and how to run
 │   ├── conftest.py               # Fixtures, engagement dependency override
 │   ├── test_health.py
 │   ├── test_engagement_api.py
@@ -358,7 +359,7 @@ All engagement endpoints accept JSON and return JSON. Each supports `language` (
 
 ## Chat & Knowledge Engine
 
-- **Language:** Chat supports English, Hindi (Devanagari), and **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*, *batao*). Language is auto-detected; the bot replies in the same language (templates, FAQ content, and MedGemma output translated to Hindi when needed).
+- **Language:** Chat supports English, Hindi (Devanagari), and **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*, *batao*, *ivf cost kitna hai*). Language is auto-detected; the bot replies in the same language (templates, FAQ content, and MedGemma output translated to Hindi when needed). **Response language alignment:** When the answer is in Hindi (e.g. Devanagari content), the AI disclaimer, follow-up question labels, proactive suggestion buttons, and “Get professional help” link are also shown in Hindi so the full response is monolingual.
 - **Intent classification** and **semantic search** over FAQs (from `knowledge_base/sample_faqs.json` when present; see `knowledge_engine.py`).
 - Low confidence or no good match → **MedGemma** (if `USE_MEDGEMMA=True`) for an IVF-focused answer.
 - **IVFGuardrail** restricts queries and MedGemma output to IVF-related content.
@@ -385,7 +386,7 @@ The frontend header includes a **Translate** dropdown (default **English**). Ind
 
 The [HomeIVF](https://homeivf.com/) site and contact number are wired in for professional fertility care:
 
-- **Chat:** Suggested actions include “Get professional help (HomeIVF)” (and Hindi variant) linking to `HOMEIVF_WEBSITE_URL`.
+- **Chat:** Suggested actions include “Get professional help (HomeIVF)” (or “पेशेवर सहायता – HomeIVF” when the answer is in Hindi) linking to `HOMEIVF_WEBSITE_URL`. Follow-up and topic suggestion labels follow the answer language.
 - **Escalation:** When a conversation is escalated to a counsellor, the message includes the HomeIVF URL and `HOMEIVF_PHONE` (default +91-9958885250).
 - **Frontend:** Footer shows “For professional help: HomeIVF · +91-9958885250” with links. Chat response links are rendered as buttons when the API returns `suggested_actions` with type `link`.
 

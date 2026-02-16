@@ -67,9 +67,10 @@ class IVFGuardrail:
     ]
     
     # IVF-related keywords (Hindi - transliterated and Devanagari)
+    # Include Latin 'ivf' so mixed-script queries like "ivf kya hai?" are recognized
     IVF_KEYWORDS_HI = [
-        # Core terms in Hindi
-        'आईवीएफ', 'इन विट्रो', 'टेस्ट ट्यूब बेबी',
+        # Core terms in Hindi (and Latin for Hinglish e.g. "ivf kya hai?")
+        'ivf', 'आईवीएफ', 'इन विट्रो', 'टेस्ट ट्यूब बेबी',
         'गर्भधारण', 'गर्भावस्था', 'बांझपन', 'बांझ',
         'भ्रूण', 'भ्रूण स्थानांतरण', 'भ्रूण प्रत्यारोपण',
         'अंडा', 'अंडे', 'अंडा संग्रह', 'अंडाशय',
