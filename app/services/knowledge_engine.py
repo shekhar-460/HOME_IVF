@@ -1439,6 +1439,18 @@ class KnowledgeEngine:
         """Generate cache key for query"""
         query_hash = hashlib.md5(f"{cache_type}:{query}:{language}".encode()).hexdigest()
         return f"knowledge_cache:{query_hash}"
+
+    def _normalize_query_for_search(self, query: str, language: str) -> str:
+        """
+        For Hindi search, ensure the English term IVF is aligned with आईवीएफ
+        so semantic search matches Hindi content that uses आईवीएफ.
+        """
+        if not query or not query.strip() or language != "hi":
+            return query
+        q = query.strip()
+        if re.search(r"\bivf\b", q, re.IGNORECASE):
+            return q + " आईवीएफ"
+        return query
     
     def _get_cached_response(self, cache_key: str) -> Optional[List[Dict]]:
         """Get cached response from Redis"""
@@ -1791,6 +1803,8 @@ class KnowledgeEngine:
         if content_types is None:
             content_types = ['faq', 'article']
         
+        # For Hindi, treat "IVF" as आईवीएफ so search matches Hindi FAQ/content
+        query = self._normalize_query_for_search(query, language)
         all_results = []
         
         if 'faq' in content_types:
@@ -2105,10 +2119,45 @@ class KnowledgeEngine:
         
         return current_answer
     
+    def _remove_duplicate_leading_content(self, text: str) -> str:
+        """Remove repeated intro/prefix so the same phrase does not appear twice (e.g. truncated then full)."""
+        if not text or len(text.strip()) < 20:
+            return text
+        # Split by double newlines (paragraphs)
+        parts = [p.strip() for p in re.split(r'\n\n+', text) if p.strip()]
+        if len(parts) >= 2:
+            first = parts[0]
+            second = parts[1]
+            # If first part is a prefix of the second, keep only the longer/full version
+            if len(first) >= 15 and (second.startswith(first) or second.startswith(first[:min(len(first), 100)])):
+                return '\n\n'.join(parts[1:])
+            if len(first) >= 15 and first.lower() in second.lower()[: len(second)][: len(first) + 80]:
+                return '\n\n'.join(parts[1:])
+        # Single newline: same intro then full (e.g. "short intro\nfull intro and rest")
+        if '\n' in text and text.count('\n') == 1:
+            a, b = text.split('\n', 1)
+            a, b = a.strip(), b.strip()
+            if len(a) >= 15 and (b.startswith(a) or a in b[: len(a) + 80]):
+                return b
+        # Single paragraph: first sentence repeated at start of rest
+        first_sentence_end = max(
+            text.find('. ', 20) + 1 if '. ' in text[20:80] else 0,
+            text.find('。', 20) + 1 if '。' in text[20:80] else 0,
+        )
+        if first_sentence_end > 30:
+            prefix = text[:first_sentence_end].strip()
+            rest = text[first_sentence_end:].strip()
+            if rest and len(prefix) >= 20 and (rest.startswith(prefix[:50]) or prefix[:40] in rest[:120]):
+                return text[first_sentence_end:].strip()
+        return text
+
     def _format_medgemma_response(self, answer: str) -> str:
         """Format Medgemma response for better readability"""
         if not answer:
             return answer
+        
+        # Remove duplicated leading content (e.g. same intro repeated when AI insight is selected)
+        answer = self._remove_duplicate_leading_content(answer)
         
         # Remove markdown formatting
         answer = re.sub(r'\*\s*\*\s*([^*]+)\*\*', r'\1', answer)

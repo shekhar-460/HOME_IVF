@@ -206,7 +206,7 @@ class EngagementService:
         when_to_test = ""
 
         if req.sex == "female":
-            if req.age >= 35 or req.irregular_cycles or req.symptoms_acne or req.symptoms_hirsutism:
+            if (req.age >= 35 or req.irregular_cycles or req.symptoms_acne or req.symptoms_hirsutism) and not req.previous_tests_amh:
                 suggest_amh = True
                 reasoning.append("AMH can help assess ovarian reserve; useful with age 35+, irregular cycles, or PCOS-related symptoms.")
             if req.years_trying is not None and req.years_trying >= 1 and not req.previous_tests_amh:
@@ -343,47 +343,87 @@ class EngagementService:
     # --- 4. Treatment Pathway Recommender ---
 
     def treatment_pathway(self, req: TreatmentPathwayRequest) -> TreatmentPathwayResponse:
-        """Recommend natural conception support, IUI, IVF, or fertility preservation."""
+        """Recommend natural conception support, IUI, IVF, or fertility preservation based on age, diagnosis, previous treatments, and duration trying."""
         pathways: List[str] = []
         reasoning: List[str] = []
-        primary = "consultation_recommended"
+        diagnosis_text = " ".join(req.known_diagnosis or []).lower()
+        previous_text = " ".join(req.previous_treatments or []).lower()
+        years = req.years_trying
 
+        # 1) Fertility preservation: explicit interest or age 38+
         if req.preserving_fertility:
             pathways.append("fertility_preservation")
             reasoning.append("You indicated interest in fertility preservation; egg or sperm freezing may be discussed with a specialist.")
-
-        if req.years_trying is None or req.years_trying < 1:
-            pathways.append("natural_conception_support")
-            reasoning.append("Optimizing timing and lifestyle can support natural conception in the first year.")
-            primary = "natural_conception_support"
-
-        if req.known_diagnosis:
-            d = " ".join(req.known_diagnosis).lower()
-            if "tubal" in d or "male factor" in d or "severe" in d:
-                pathways.append("ivf")
-                primary = "ivf"
-                reasoning.append("Some diagnoses (e.g. tubal factor, significant male factor) often lead to IVF discussion.")
-            elif "ovulation" in d or "pcos" in d or "mild" in d:
-                pathways.append("iui")
-                if primary == "consultation_recommended":
-                    primary = "iui"
-                reasoning.append("Ovulation issues or mild male factor may be addressed with IUI or ovulation induction; specialist can advise.")
-
-        if req.years_trying is not None and req.years_trying >= 2 and "ivf" not in pathways:
-            pathways.append("iui")
-            pathways.append("ivf")
-            reasoning.append("After 2+ years of trying, IUI or IVF may be considered depending on workup.")
-            if primary == "consultation_recommended":
-                primary = "ivf"
-
         if req.age >= 38 and "fertility_preservation" not in pathways:
             pathways.append("fertility_preservation")
             reasoning.append("Age 38+ may warrant discussion of fertility preservation with a specialist.")
 
+        # 2) Diagnosis-driven: strong indicators for IVF vs IUI
+        if req.known_diagnosis:
+            if any(k in diagnosis_text for k in ("tubal", "male factor", "severe", "azoospermia", "blocked tube")):
+                pathways.append("ivf")
+                reasoning.append("Diagnoses such as tubal factor, significant male factor, or azoospermia often lead to IVF discussion with a specialist.")
+            elif any(k in diagnosis_text for k in ("ovulation", "pcos", "pcod", "mild", "unexplained")):
+                pathways.append("iui")
+                reasoning.append("Ovulation issues, PCOS, or mild male factor may be addressed with IUI or ovulation induction; a specialist can advise.")
+
+        # 3) Previous treatments: failed or repeated IUI → consider IVF; already did IVF → keep IVF in pathway
+        if req.previous_treatments:
+            if "ivf" in previous_text:
+                pathways.append("ivf")
+                reasoning.append("You have already had or considered IVF; a specialist can advise on next steps.")
+            elif "iui" in previous_text and (years is None or years >= 1):
+                pathways.append("iui")
+                pathways.append("ivf")
+                reasoning.append("After previous IUI, both repeat IUI and IVF may be options depending on your workup and preferences.")
+
+        # 4) Duration trying: first year → natural support; 2+ years → IUI/IVF discussion
+        if years is None or years < 1:
+            pathways.append("natural_conception_support")
+            reasoning.append("In the first year, optimizing timing and lifestyle can support natural conception; a specialist can help if needed.")
+        elif years >= 2:
+            if "ivf" not in pathways:
+                pathways.append("ivf")
+            if "iui" not in pathways:
+                pathways.append("iui")
+            reasoning.append("After 2+ years of trying, IUI or IVF may be considered depending on workup and diagnosis.")
+
+        # 5) Always suggest consultation when multiple options or when pathway is not only natural
+        if "natural_conception_support" in pathways and len(pathways) > 1:
+            pathways.append("consultation_recommended")
+            reasoning.append("A fertility specialist can help choose the right option for your situation.")
+        elif "ivf" in pathways or "iui" in pathways or "fertility_preservation" in pathways:
+            pathways.append("consultation_recommended")
+
         pathways = list(dict.fromkeys(pathways))
+
+        # Primary recommendation: priority IVF > IUI > fertility_preservation > natural > consultation
+        if "ivf" in pathways:
+            primary = "ivf"
+        elif "iui" in pathways:
+            primary = "iui"
+        elif req.preserving_fertility and "fertility_preservation" in pathways:
+            primary = "fertility_preservation"
+        elif "natural_conception_support" in pathways and (years is None or years < 1) and "ivf" not in pathways and "iui" not in pathways:
+            primary = "natural_conception_support"
+        elif "fertility_preservation" in pathways:
+            primary = "fertility_preservation"
+        else:
+            primary = "consultation_recommended"
+
         if not pathways:
             pathways = ["natural_conception_support", "consultation_recommended"]
             primary = "consultation_recommended"
+
+        def _pathway_display(s: str) -> str:
+            if s == "ivf":
+                return "IVF"
+            if s == "iui":
+                return "IUI"
+            return s
+
+        suggested_display = [_pathway_display(p) for p in pathways]
+        primary_display = _pathway_display(primary)
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
@@ -392,49 +432,95 @@ class EngagementService:
                 f"years trying {req.years_trying}, diagnosis {req.known_diagnosis}? "
                 "Natural conception, IUI, or IVF. 2–3 sentences only. IVF context."
             )
+            if req.other_information:
+                q += " Other info: " + (req.other_information or "")
             ai_insight = self._get_ai_insight(q, req.language or "en")
 
         return TreatmentPathwayResponse(
-            suggested_pathways=pathways,
-            primary_recommendation=primary,
+            suggested_pathways=suggested_display,
+            primary_recommendation=primary_display,
             reasoning=reasoning,
             ai_insight=ai_insight,
         )
 
     # --- 5. Home IVF Eligibility Checker ---
 
+    def _normalize_contraindications(
+        self, raw: Optional[List[str]]
+    ) -> List[str]:
+        """Accept list or comma-separated string; return trimmed non-empty list."""
+        if raw is None:
+            return []
+        out: List[str] = []
+        for item in raw:
+            if isinstance(item, str):
+                for part in item.split(","):
+                    s = part.strip()
+                    if s:
+                        out.append(s)
+            elif item is not None and str(item).strip():
+                out.append(str(item).strip())
+        return out
+
     def home_ivf_eligibility(self, req: HomeIVFEligibilityRequest) -> HomeIVFEligibilityResponse:
-        """Check whether the couple may be suitable for Home IVF and prompt consultation."""
+        """Check whether the couple may be suitable for Home IVF and prompt consultation. Uses female/male age, diagnosis, contraindications, and workup status."""
         eligible = True
         reasons: List[str] = []
         missing: List[str] = []
         prompt_consultation = True
-        booking_message = "Book a consultation to confirm eligibility and discuss your Home IVF plan."
+        contraindications = self._normalize_contraindications(req.medical_contraindications)
+        diagnosis_text = " ".join(req.known_diagnosis or []).lower()
+        previous_text = " ".join(req.previous_treatments or []).lower()
 
+        # Hard ineligibility: female age > 45
         if req.female_age > 45:
             eligible = False
-            reasons.append("Female age over 45 is often outside typical Home IVF criteria.")
+            reasons.append("Female age over 45 is often outside typical Home IVF criteria; a specialist can discuss options.")
         elif req.female_age >= 40:
-            reasons.append("Age 40+ may require specialist assessment for Home IVF suitability.")
+            reasons.append("Female age 40+ may require specialist assessment for Home IVF suitability.")
 
-        if req.medical_contraindications:
-            for c in req.medical_contraindications:
-                if any(k in c.lower() for k in ("ohss", "severe", "uncontrolled", "cancer", "heart")):
-                    eligible = False
-                    reasons.append(f"Medical contraindication: {c}")
+        # Male age: soft note if 50+
+        if req.male_age is not None and req.male_age >= 50:
+            reasons.append("Male age 50+ may warrant discussion of semen quality and suitability with a specialist.")
+
+        # Diagnosis: some require specialist review (do not automatically set ineligible)
+        if req.known_diagnosis:
+            if any(k in diagnosis_text for k in ("tubal", "severe", "azoospermia", "blocked tube")):
+                reasons.append("Some diagnoses (e.g. tubal factor, severe male factor) may require specialist review before Home IVF.")
+            if "pcos" in diagnosis_text or "pcod" in diagnosis_text:
+                reasons.append("PCOS can be managed in Home IVF; ovarian reserve and protocol should be confirmed with a specialist.")
+
+        # Previous treatments: OHSS or multiple IVF may need mention
+        if req.previous_treatments:
+            if "ohss" in previous_text or "hyperstimulation" in previous_text:
+                eligible = False
+                reasons.append("Previous OHSS or hyperstimulation history is a consideration for Home IVF; specialist review is important.")
+            elif "ivf" in previous_text:
+                reasons.append("Previous IVF experience is useful; a specialist can confirm if Home IVF is appropriate for you.")
+
+        # Medical contraindications: serious keywords → ineligible
+        for c in contraindications:
+            cl = c.lower()
+            if any(k in cl for k in ("ohss", "severe ohss", "uncontrolled", "cancer", "heart disease", "severe hypertension", "thrombosis")):
+                eligible = False
+                reasons.append(f"Medical contraindication noted: {c}. A specialist can advise on suitability.")
 
         if not req.has_consulted_specialist:
             missing.append("Consultation with a fertility specialist to confirm suitability.")
         if not req.ovarian_reserve_known and eligible:
-            missing.append("Ovarian reserve assessment (e.g. AMH) helps tailor Home IVF protocol.")
+            missing.append("Ovarian reserve assessment (e.g. AMH) helps tailor the Home IVF protocol.")
         if not req.semen_analysis_known and req.male_age is not None and eligible:
             missing.append("Semen analysis helps confirm male factor suitability for Home IVF.")
-
         if not req.stable_relationship_or_single_with_donor:
             missing.append("Home IVF typically requires a clear plan (partner or donor).")
 
         if not reasons:
             reasons.append("Based on the information provided, you may be a candidate for Home IVF; a consultation will confirm.")
+
+        if eligible:
+            booking_message = "Book a consultation to confirm eligibility and discuss your Home IVF plan."
+        else:
+            booking_message = "Book a consultation to discuss your situation and explore options, including whether Home IVF or clinic-based care is more suitable."
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
@@ -442,6 +528,10 @@ class EngagementService:
                 "One sentence: who might be suitable for Home IVF and what they should do next. "
                 "Encourage consultation. IVF context only."
             )
+            if req.known_diagnosis or req.previous_treatments or req.other_information:
+                q += " Diagnosis: " + str(req.known_diagnosis or []) + ". Previous treatments: " + str(req.previous_treatments or [])
+                if req.other_information:
+                    q += " Other info: " + (req.other_information or "")
             ai_insight = self._get_ai_insight(q, req.language or "en")
 
         return HomeIVFEligibilityResponse(

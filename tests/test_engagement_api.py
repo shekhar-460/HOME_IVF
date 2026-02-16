@@ -32,13 +32,17 @@ async def test_fertility_readiness_ok(client):
 
 @pytest.mark.asyncio
 async def test_fertility_readiness_validation(client):
-    """Fertility readiness rejects invalid age."""
+    """Fertility readiness rejects invalid age (minimum female age 21)."""
     response = await client.post(
         f"{BASE}/fertility-readiness",
         json={"age": 15, "menstrual_pattern": "regular"},
     )
-    # App uses custom handler that returns 400 for validation errors
     assert response.status_code in (400, 422)
+    response20 = await client.post(
+        f"{BASE}/fertility-readiness",
+        json={"age": 20, "menstrual_pattern": "regular"},
+    )
+    assert response20.status_code in (400, 422)
 
 
 @pytest.mark.asyncio
@@ -95,6 +99,22 @@ async def test_treatment_pathway_ok(client):
     assert "primary_recommendation" in data
     assert "reasoning" in data
     assert isinstance(data["suggested_pathways"], list)
+
+
+@pytest.mark.asyncio
+async def test_treatment_pathway_rejects_random_data(client):
+    """Treatment pathway returns 422 when diagnosis/treatment contain random text."""
+    payload = {
+        "age": 36,
+        "sex": "female",
+        "known_diagnosis": ["hjbhscbdscjdcdjcdcjdscjdcjdcjdcnj"],
+        "previous_treatments": ["hbchbckjsbcjkccjcjncjnjcnscns"],
+        "use_ai_insight": False,
+    }
+    response = await client.post(f"{BASE}/treatment-pathway", json=payload)
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
 
 
 @pytest.mark.asyncio

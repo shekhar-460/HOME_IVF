@@ -125,8 +125,12 @@ async def send_message(
 ):
     """Send a message to the bot"""
     try:
-        # Detect language if not provided
-        language = request.language or language_detector.detect_language(request.message)
+        # Always detect from message so Hinglish (e.g. "ivf kya hai?") gets Hindi reply
+        detected = language_detector.detect_language(request.message)
+        if detected == "hi":
+            language = "hi"
+        else:
+            language = request.language or detected
         if not language_detector.validate_language(language):
             language = settings.DEFAULT_LANGUAGE
         
@@ -257,14 +261,15 @@ async def create_conversation(
 ):
     """Start a new conversation or send message to existing conversation"""
     try:
-        # Detect language
-        language = request.language or settings.DEFAULT_LANGUAGE
         message = request.initial_message  # Can be used for both new and existing conversations
-        
+        # Prefer message-based detection (Hinglish → Hindi) so "ivf kya hai?" gets Hindi reply
         if message:
             detected_lang = language_detector.detect_language(message)
-            if language_detector.validate_language(detected_lang):
-                language = detected_lang
+            language = detected_lang if detected_lang == "hi" else (request.language or detected_lang)
+        else:
+            language = request.language or settings.DEFAULT_LANGUAGE
+        if not language_detector.validate_language(language):
+            language = settings.DEFAULT_LANGUAGE
         
         # If conversation_id is provided, send message to existing conversation
         if request.conversation_id:

@@ -132,8 +132,8 @@
         <form id="form-fertility-readiness" class="form-engagement">
           <label>Age (years) *</label>
           <div class="input-with-hint">
-            <input type="number" name="age" min="18" max="55" value="30" required aria-describedby="fertility-age-hint" />
-            <span id="fertility-age-hint" class="field-hint">18–55 years</span>
+            <input type="number" name="age" min="21" max="55" value="30" required aria-describedby="fertility-age-hint" />
+            <span id="fertility-age-hint" class="field-hint">21–55 years (female)</span>
           </div>
           <label>Medical history</label>
           <div class="medical-history-picker" aria-describedby="medical-history-hint">
@@ -183,14 +183,26 @@
           </select>
           <label>Cycle length (days, optional)</label>
           <input type="number" name="cycle_length_days" min="21" max="45" placeholder="28" />
-          <label>Previous pregnancies</label>
-          <input type="number" name="previous_pregnancies" min="0" value="0" />
-          <label>Live births</label>
-          <input type="number" name="live_births" min="0" value="0" />
-          <label>Miscarriages</label>
-          <input type="number" name="miscarriages" min="0" value="0" />
+          <label for="fertility-previous-pregnancies">Previous pregnancies</label>
+          <div class="input-with-hint">
+            <input type="number" id="fertility-previous-pregnancies" name="previous_pregnancies" min="0" max="7" value="0" title="0–7" aria-describedby="err-fertility-previous-pregnancies fertility-previous-pregnancies-hint" />
+            <span id="fertility-previous-pregnancies-hint" class="field-hint">0–7</span>
+            <span id="err-fertility-previous-pregnancies" class="field-error" role="alert" aria-live="polite"></span>
+          </div>
+          <label for="fertility-live-births">Live births</label>
+          <div class="input-with-hint">
+            <input type="number" id="fertility-live-births" name="live_births" min="0" max="7" value="0" title="0–7" aria-describedby="err-fertility-live-births fertility-live-births-hint" />
+            <span id="fertility-live-births-hint" class="field-hint">0–7</span>
+            <span id="err-fertility-live-births" class="field-error" role="alert" aria-live="polite"></span>
+          </div>
+          <label for="fertility-miscarriages">Miscarriages</label>
+          <div class="input-with-hint">
+            <input type="number" id="fertility-miscarriages" name="miscarriages" min="0" max="7" value="0" title="0–7" aria-describedby="err-fertility-miscarriages fertility-miscarriages-hint" />
+            <span id="fertility-miscarriages-hint" class="field-hint">0–7</span>
+            <span id="err-fertility-miscarriages" class="field-error" role="alert" aria-live="polite"></span>
+          </div>
           <label>Years trying to conceive (optional)</label>
-          <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 1.5" />
+          <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 1.5" title="0–20 years" />
           <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
           <button type="submit" class="btn btn-primary">Get result</button>
         </form>
@@ -206,8 +218,8 @@
         <form id="form-hormonal-predictor" class="form-engagement">
           <label>Your age *</label>
           <div class="input-with-hint">
-            <input type="number" name="age" min="18" max="55" value="32" required aria-describedby="hormonal-age-hint" />
-            <span id="hormonal-age-hint" class="field-hint">18–55 years</span>
+            <input type="number" name="age" min="21" max="55" value="32" required aria-describedby="hormonal-age-hint" />
+            <span id="hormonal-age-hint" class="field-hint">21–55 years</span>
           </div>
           <label>I am</label>
           <select name="sex" id="hormonal-sex">
@@ -280,23 +292,71 @@
       <div class="panel-content">
         <h2>Treatment Pathway Recommender</h2>
         <p class="muted">Guidance toward natural conception, IUI, IVF, or fertility preservation.</p>
+        <details class="score-inputs-info">
+          <summary>Inputs for your pathway</summary>
+          <p class="score-inputs-intro">Age, diagnosis, treatments, and lifestyle inform the recommendation.</p>
+        </details>
         <form id="form-treatment-pathway" class="form-engagement">
-          <label>Age *</label>
+          <label>Age (years) *</label>
           <div class="input-with-hint">
-            <input type="number" name="age" min="18" max="55" value="34" required aria-describedby="pathway-age-hint" />
-            <span id="pathway-age-hint" class="field-hint">18–55 years</span>
+            <input type="number" name="age" min="21" max="55" value="34" required aria-describedby="pathway-age-hint" />
+            <span id="pathway-age-hint" class="field-hint">21–55 years</span>
           </div>
           <label>I am</label>
-          <select name="sex">
+          <select name="sex" id="pathway-sex">
             <option value="female">Female</option>
             <option value="male">Male</option>
           </select>
           <label>Years trying (optional)</label>
           <input type="number" name="years_trying" min="0" max="20" step="0.5" placeholder="e.g. 2" />
-          <label>Known diagnosis (comma-separated)</label>
-          <input type="text" name="known_diagnosis" placeholder="e.g. tubal factor, PCOS" />
-          <label>Previous treatments (comma-separated)</label>
-          <input type="text" name="previous_treatments" placeholder="e.g. IUI, ovulation induction" />
+          <label>Known diagnosis</label>
+          <div class="medical-history-picker" aria-describedby="pathway-diagnosis-hint">
+            <div class="medical-history-row">
+              <select id="pathway-known-diagnosis-select" aria-label="Select diagnosis">
+                <option value="">Select condition…</option>
+              </select>
+              <div id="pathway-diagnosis-other-wrap" class="medical-history-other-wrap" hidden>
+                <input type="text" id="pathway-diagnosis-other" placeholder="Specify" aria-label="Other diagnosis" />
+              </div>
+              <button type="button" id="pathway-diagnosis-add" class="btn btn-secondary">Add</button>
+            </div>
+            <p id="pathway-diagnosis-hint" class="field-hint">Add one or more; use Other if not listed.</p>
+            <ul id="pathway-known-diagnosis-list" class="medical-history-list" aria-label="Added diagnoses"></ul>
+          </div>
+          <label>Previous treatments</label>
+          <div class="medical-history-picker" aria-describedby="pathway-treatments-hint">
+            <div class="medical-history-row">
+              <select id="pathway-previous-treatments-select" aria-label="Select treatment">
+                <option value="">Select treatment…</option>
+              </select>
+              <div id="pathway-treatments-other-wrap" class="medical-history-other-wrap" hidden>
+                <input type="text" id="pathway-treatments-other" placeholder="Specify" aria-label="Other treatment" />
+              </div>
+              <button type="button" id="pathway-treatments-add" class="btn btn-secondary">Add</button>
+            </div>
+            <p id="pathway-treatments-hint" class="field-hint">Add one or more; use Other if not listed.</p>
+            <ul id="pathway-previous-treatments-list" class="medical-history-list" aria-label="Added treatments"></ul>
+          </div>
+          <label>Any other information (optional)</label>
+          <textarea name="other_information" id="pathway-other-information" rows="2" placeholder="e.g. family history, lifestyle"></textarea>
+          <label><input type="checkbox" name="lifestyle_smoking" /> I smoke</label>
+          <label>Alcohol</label>
+          <select name="lifestyle_alcohol">
+            <option value="none">None</option>
+            <option value="occasional">Occasional</option>
+            <option value="regular">Regular</option>
+          </select>
+          <label>Exercise</label>
+          <select name="lifestyle_exercise">
+            <option value="sedentary">Sedentary</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="active">Active</option>
+          </select>
+          <label>Weight (kg, optional)</label>
+          <input type="number" name="weight_kg" id="pathway-weight" min="30" max="200" step="0.1" placeholder="e.g. 65" />
+          <label>Height (cm, optional)</label>
+          <input type="number" name="height_cm" id="pathway-height" min="100" max="250" step="1" placeholder="e.g. 165" />
+          <p id="pathway-bmi-display" class="field-hint bmi-display" aria-live="polite"></p>
           <label><input type="checkbox" name="preserving_fertility" /> Interested in fertility preservation</label>
           <label><input type="checkbox" name="use_ai_insight" checked /> Include AI insight</label>
           <button type="submit" class="btn btn-primary">Get pathway</button>
@@ -310,17 +370,74 @@
       <div class="panel-content">
         <h2>Home IVF Eligibility Checker</h2>
         <p class="muted">Quick indication of suitability; book a consultation to confirm.</p>
+        <details class="score-inputs-info">
+          <summary>Inputs for eligibility</summary>
+          <p class="score-inputs-intro">Ages, diagnosis, treatments, and lifestyle inform the check.</p>
+        </details>
         <form id="form-home-ivf-eligibility" class="form-engagement">
-          <label>Female age *</label>
+          <label>Female age (years) *</label>
           <div class="input-with-hint">
-            <input type="number" name="female_age" min="18" max="50" value="33" required aria-describedby="female-age-hint" />
-            <span id="female-age-hint" class="field-hint">18–50 years</span>
+            <input type="number" name="female_age" min="21" max="50" value="33" required aria-describedby="female-age-hint" />
+            <span id="female-age-hint" class="field-hint">21–50 years</span>
           </div>
           <label>Male age (optional)</label>
           <div class="input-with-hint">
-            <input type="number" name="male_age" min="18" max="60" placeholder="35" aria-describedby="male-age-hint" />
-            <span id="male-age-hint" class="field-hint">18–60 years</span>
+            <input type="number" name="male_age" min="21" max="60" placeholder="35" aria-describedby="male-age-hint" />
+            <span id="male-age-hint" class="field-hint">21–60 years</span>
           </div>
+          <label>I am</label>
+          <select name="sex" id="home-ivf-sex">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+          <label>Known diagnosis</label>
+          <div class="medical-history-picker" aria-describedby="home-ivf-diagnosis-hint">
+            <div class="medical-history-row">
+              <select id="home-ivf-known-diagnosis-select" aria-label="Select diagnosis">
+                <option value="">Select condition…</option>
+              </select>
+              <div id="home-ivf-diagnosis-other-wrap" class="medical-history-other-wrap" hidden>
+                <input type="text" id="home-ivf-diagnosis-other" placeholder="Specify" aria-label="Other diagnosis" />
+              </div>
+              <button type="button" id="home-ivf-diagnosis-add" class="btn btn-secondary">Add</button>
+            </div>
+            <p id="home-ivf-diagnosis-hint" class="field-hint">Add one or more; use Other if not listed.</p>
+            <ul id="home-ivf-known-diagnosis-list" class="medical-history-list" aria-label="Added diagnoses"></ul>
+          </div>
+          <label>Previous treatments</label>
+          <div class="medical-history-picker" aria-describedby="home-ivf-treatments-hint">
+            <div class="medical-history-row">
+              <select id="home-ivf-previous-treatments-select" aria-label="Select treatment">
+                <option value="">Select treatment…</option>
+              </select>
+              <div id="home-ivf-treatments-other-wrap" class="medical-history-other-wrap" hidden>
+                <input type="text" id="home-ivf-treatments-other" placeholder="Specify" aria-label="Other treatment" />
+              </div>
+              <button type="button" id="home-ivf-treatments-add" class="btn btn-secondary">Add</button>
+            </div>
+            <p id="home-ivf-treatments-hint" class="field-hint">Add one or more; use Other if not listed.</p>
+            <ul id="home-ivf-previous-treatments-list" class="medical-history-list" aria-label="Added treatments"></ul>
+          </div>
+          <label>Any other information (optional)</label>
+          <textarea name="other_information" id="home-ivf-other-information" rows="2" placeholder="e.g. family history, lifestyle"></textarea>
+          <label><input type="checkbox" name="lifestyle_smoking" /> I smoke</label>
+          <label>Alcohol</label>
+          <select name="lifestyle_alcohol">
+            <option value="none">None</option>
+            <option value="occasional">Occasional</option>
+            <option value="regular">Regular</option>
+          </select>
+          <label>Exercise</label>
+          <select name="lifestyle_exercise">
+            <option value="sedentary">Sedentary</option>
+            <option value="moderate" selected>Moderate</option>
+            <option value="active">Active</option>
+          </select>
+          <label>Weight (kg, optional)</label>
+          <input type="number" name="weight_kg" id="home-ivf-weight" min="30" max="200" step="0.1" placeholder="e.g. 65" />
+          <label>Height (cm, optional)</label>
+          <input type="number" name="height_cm" id="home-ivf-height" min="100" max="250" step="1" placeholder="e.g. 165" />
+          <p id="home-ivf-bmi-display" class="field-hint bmi-display" aria-live="polite"></p>
           <label>Medical contraindications (comma-separated)</label>
           <input type="text" name="medical_contraindications" placeholder="e.g. severe OHSS history" />
           <label><input type="checkbox" name="has_consulted_specialist" /> Have consulted a specialist</label>

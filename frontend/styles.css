@@ -289,6 +289,19 @@ body {
   color: var(--muted, #6b7280);
 }
 
+.form-engagement .field-error {
+  display: block;
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-top: 0.25rem;
+  min-height: 1.25em;
+}
+.form-engagement input.field-invalid {
+  border-color: var(--accent);
+  outline-color: var(--accent);
+}
+
 .form-engagement .bmi-display {
   margin-top: 0.25rem;
   font-weight: 500;
@@ -453,4 +466,50 @@ body {
 
 /* --- Loading / error --- */
 .loading { color: var(--text-muted); }
-.error { color: #b91c1c; background: #fef2f2; padding: 0.5rem; border-radius: 6px; }
+
+/* Result box error state: visible, accessible alert */
+.result-box.error {
+  border-color: #dc2626;
+  background: #fef2f2;
+  padding: 1.25rem;
+}
+.result-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: #b91c1c;
+}
+.result-error-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.result-error-icon::before {
+  content: "!";
+}
+.result-error-body {
+  flex: 1;
+  min-width: 0;
+}
+.result-error-title {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  color: #991b1b;
+}
+.result-error-message {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #b91c1c;
+}

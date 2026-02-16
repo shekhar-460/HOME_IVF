@@ -102,6 +102,20 @@ class TestHormonalPredictor:
         res = service.hormonal_predictor(req)
         assert res.suggest_specialist is True
 
+    def test_does_not_suggest_amh_when_already_had_amh_test(self, service):
+        """If patient already had AMH test, do not suggest AMH again."""
+        req = HormonalPredictorRequest(
+            age=36,
+            sex="female",
+            irregular_cycles=True,
+            years_trying=10,
+            previous_tests_amh=True,
+            use_ai_insight=False,
+        )
+        res = service.hormonal_predictor(req)
+        assert res.suggest_amh is False
+        assert res.suggest_specialist is True  # still suggest specialist for 10 years trying
+
 
 class TestVisualHealth:
     def test_recommendations_from_sleep_stress(self, service):

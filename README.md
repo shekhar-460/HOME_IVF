@@ -30,7 +30,7 @@ A **FastAPI** application for multilingual IVF patient education and pre-consult
 The system has two main pillars:
 
 1. **Conversational patient education (chat)**  
-   English and Hindi chat with intent classification, semantic search over FAQs (from `knowledge_base/sample_faqs.json`), and optional **MedGemma-4b-it** fallback for IVF-related questions. All answers are constrained by an **IVF guardrail**. Translation (e.g. MedGemma output to Hindi) uses **googletrans**.
+   English and Hindi chat with intent classification, semantic search over FAQs (from `knowledge_base/sample_faqs.json`), and optional **MedGemma-4b-it** fallback for IVF-related questions. **Language is auto-detected** (including **Hinglish**—Roman-script Hindi, e.g. *ivf kya hai?*), and the bot **replies in the same language**. All answers are constrained by an **IVF guardrail**. Translation (e.g. MedGemma output to Hindi) uses **googletrans**.
 
 2. **AI engagement tools (REST)**  
    Five standalone POST APIs for pre-consultation use:
@@ -48,7 +48,7 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
 
 | Area | Description |
 |------|-------------|
-| **Languages** | English (`en`), Hindi (`hi`) with auto-detection (langdetect) |
+| **Languages** | English (`en`), Hindi (`hi`), and Hinglish (Roman-script Hindi); auto-detection and reply in same language |
 | **Chat** | Create conversation, send message, get history, WebSocket; intent classification and escalation |
 | **Knowledge** | Semantic search over JSON FAQs; optional MedGemma-4b-it fallback; IVF-only guardrail |
 | **Translation** | googletrans (3.1.0a0): chat en ↔ hi; **page translation** (header dropdown) for 14+ languages |
@@ -160,7 +160,7 @@ HOME IVF/
 │   │   ├── followup_generator.py
 │   │   └── proactive_suggestions.py
 │   └── utils/
-│       ├── language_detector.py   # langdetect
+│       ├── language_detector.py   # langdetect + Hinglish (Roman-script Hindi) detection
 │       └── translator.py         # googletrans (en/hi + page languages)
 ├── frontend/                     # Static UI: index.html, app.js, styles.css (chat, tools, translate dropdown)
 ├── knowledge_base/               # Optional: sample_faqs.json (FAQ source if present)
@@ -173,9 +173,10 @@ HOME IVF/
 ├── requirements.txt              # App dependencies (googletrans==3.1.0a0)
 ├── start.sh                      # Check env and run backend (0.0.0.0:8000) + frontend (0.0.0.0:3000); Ctrl+C stops both
 ├── pytest.ini
+├── QUICKSTART.md                 # Minimal steps to run the app
+├── README.md                     # Full documentation
 ├── .env                          # Optional (HOST, PORT, DATABASE_URL, etc.)
-├── .gitignore                    # Python, venv, .env, tests, IDE, OS, logs, model cache
-└── README.md
+└── .gitignore                    # Python, venv, .env, tests, IDE, OS, logs, model cache
 ```
 
 ---
@@ -193,7 +194,8 @@ HOME IVF/
 
 1. **Clone and enter the project**
    ```bash
-   cd "/mnt/NewDisk/SHEKHAR/FERTILITY PREDICTION AI/HOME IVF"
+   git clone <repository-url>
+   cd HOME_IVF
    ```
 
 2. **Create and activate a virtual environment**
@@ -356,6 +358,7 @@ All engagement endpoints accept JSON and return JSON. Each supports `language` (
 
 ## Chat & Knowledge Engine
 
+- **Language:** Chat supports English, Hindi (Devanagari), and **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*, *batao*). Language is auto-detected; the bot replies in the same language (templates, FAQ content, and MedGemma output translated to Hindi when needed).
 - **Intent classification** and **semantic search** over FAQs (from `knowledge_base/sample_faqs.json` when present; see `knowledge_engine.py`).
 - Low confidence or no good match → **MedGemma** (if `USE_MEDGEMMA=True`) for an IVF-focused answer.
 - **IVFGuardrail** restricts queries and MedGemma output to IVF-related content.

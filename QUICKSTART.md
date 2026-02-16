@@ -15,8 +15,7 @@ Get **AI Engagement Tools (Home IVF)** running in a few steps.
 ## 1. Setup
 
 ```bash
-# From project root
-cd "HOME IVF"   # or your project path
+# From project root (e.g. after cloning: cd HOME_IVF)
 
 python3 -m venv .venv
 source .venv/bin/activate   # Linux/macOS
@@ -97,6 +96,12 @@ Open **http://localhost:3000** (or http://*your-ip*:3000). The frontend uses **h
 pip install pytest pytest-asyncio httpx
 pytest tests/ -v
 ```
+
+---
+
+## Chat languages
+
+The chat supports **English** and **Hindi**. Language is auto-detected, including **Hinglish** (Roman-script Hindi, e.g. *ivf kya hai?*). The bot replies in the same language.
 
 ---
 

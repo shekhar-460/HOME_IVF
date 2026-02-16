@@ -5,8 +5,13 @@
   const API_BASE = window.API_BASE || (window.location.protocol + "//" + window.location.hostname + ":" + API_PORT);
 
   // Age (and other min/max number) validation: clear input when value is outside range
+  // Fertility pregnancy fields (previous_pregnancies, live_births, miscarriages) use dedicated validation below
+  var FERTILITY_COUNT_NAMES = ["previous_pregnancies", "live_births", "miscarriages"];
   function setupNumberRangeValidation() {
     document.querySelectorAll(".form-engagement input[type=number][min][max]").forEach(function (input) {
+      var name = input.getAttribute("name");
+      if (name && FERTILITY_COUNT_NAMES.indexOf(name) !== -1) return;
+
       var min = parseInt(input.getAttribute("min"), 10);
       var max = parseInt(input.getAttribute("max"), 10);
       if (isNaN(min) || isNaN(max)) return;
@@ -30,6 +35,58 @@
     });
   }
   setupNumberRangeValidation();
+
+  // Dedicated validation for Previous pregnancies, Live births, Miscarriages (0–20 integer, inline errors)
+  function setupFertilityPregnancyValidation() {
+    var config = [
+      { name: "previous_pregnancies", id: "fertility-previous-pregnancies", errId: "err-fertility-previous-pregnancies", label: "Previous pregnancies" },
+      { name: "live_births", id: "fertility-live-births", errId: "err-fertility-live-births", label: "Live births" },
+      { name: "miscarriages", id: "fertility-miscarriages", errId: "err-fertility-miscarriages", label: "Miscarriages" }
+    ];
+    var min = 0, max = 7;
+    config.forEach(function (c) {
+      var input = document.getElementById(c.id) || document.querySelector("#form-fertility-readiness input[name=\"" + c.name + "\"]");
+      var errEl = document.getElementById(c.errId);
+      if (!input) return;
+
+      function showError(msg) {
+        input.setCustomValidity(msg || "");
+        input.classList.add("field-invalid");
+        if (errEl) errEl.textContent = msg || "";
+      }
+      function clearError() {
+        input.setCustomValidity("");
+        input.classList.remove("field-invalid");
+        if (errEl) errEl.textContent = "";
+      }
+
+      function validate() {
+        var val = input.value.trim();
+        if (val === "") {
+          clearError();
+          return true;
+        }
+        var n = parseInt(val, 10);
+        if (val !== String(n) || isNaN(n)) {
+          showError(c.label + " must be a whole number between " + min + " and " + max + ".");
+          return false;
+        }
+        if (n < min || n > max) {
+          showError(c.label + " must be between " + min + " and " + max + ".");
+          return false;
+        }
+        clearError();
+        return true;
+      }
+
+      input.addEventListener("blur", validate);
+      input.addEventListener("input", function () {
+        if (input.value.trim() === "") clearError();
+        else validate();
+      });
+    });
+  }
+  setupFertilityPregnancyValidation();
 
   var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -94,7 +151,16 @@
     };
     if (body != null) opts.body = JSON.stringify(body);
     return fetch(API_BASE + path, opts).then(function (r) {
-      if (!r.ok) return r.json().then(function (j) { throw new Error(j.detail || j.message || r.statusText); }).catch(function () { throw new Error(r.statusText); });
+      if (!r.ok) {
+        return r.json().then(function (j) {
+          var msg = r.statusText;
+          if (j.detail) {
+            if (Array.isArray(j.detail) && j.detail.length) msg = j.detail.map(function (d) { return d.msg || String(d); }).join(" ");
+            else msg = typeof j.detail === "string" ? j.detail : String(j.detail);
+          } else if (j.message) msg = j.message;
+          throw new Error(msg);
+        }).catch(function (e) { if (e instanceof Error && e.message) throw e; throw new Error(r.statusText); });
+      }
       return r.json();
     });
   }
@@ -109,9 +175,21 @@
   }
 
   function showResult(el, content, isError) {
-    el.innerHTML = content;
-    el.hidden = false;
-    el.classList.toggle("error", !!isError);
+    if (isError) {
+      el.innerHTML = "<div class=\"result-error\" role=\"alert\">" +
+        "<span class=\"result-error-icon\" aria-hidden=\"true\"></span>" +
+        "<div class=\"result-error-body\">" +
+        "<strong class=\"result-error-title\">Please correct the following:</strong>" +
+        "<p class=\"result-error-message\">" + escapeHtml(content != null ? String(content) : "") + "</p>" +
+        "</div></div>";
+      el.classList.add("error");
+      el.hidden = false;
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } else {
+      el.innerHTML = content;
+      el.classList.remove("error");
+      el.hidden = false;
+    }
   }
 
   // --- Navigation ---
@@ -294,6 +372,8 @@
         if (!val) return;
         otherInput.value = "";
       } else if (!val) return;
+      var alreadyAdded = added.some(function (item) { return item.trim().toLowerCase() === val.trim().toLowerCase(); });
+      if (alreadyAdded) return;
       added.push(val);
       renderList();
       selectEl.value = "";
@@ -316,6 +396,26 @@
   document.getElementById("form-fertility-readiness").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    // Trigger inline validation on pregnancy fields so errors show before submit checks
+    ["previous_pregnancies", "live_births", "miscarriages"].forEach(function (name) {
+      var input = f[name];
+      if (input) input.dispatchEvent(new Event("blur", { bubbles: true }));
+    });
+    if (!f.checkValidity()) return;
+    var age = parseInt(f.age.value, 10);
+    var prevPregRaw = (f.previous_pregnancies.value || "").trim();
+    var liveBirthsRaw = (f.live_births.value || "").trim();
+    var miscRaw = (f.miscarriages.value || "").trim();
+    var prevPreg = prevPregRaw === "" ? 0 : parseInt(f.previous_pregnancies.value, 10);
+    var liveBirths = liveBirthsRaw === "" ? 0 : parseInt(f.live_births.value, 10);
+    var misc = miscRaw === "" ? 0 : parseInt(f.miscarriages.value, 10);
+    var yearsTry = f.years_trying.value ? parseFloat(f.years_trying.value) : null;
+    if (isNaN(age) || age < 21 || age > 55) { showResult(document.getElementById("result-fertility-readiness"), "Please enter age between 21 and 55 (female minimum age is 21).", true); return; }
+    if (prevPregRaw !== "" && (isNaN(prevPreg) || prevPreg < 0 || prevPreg > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Previous pregnancies must be a whole number between 0 and 7.", true); return; }
+    if (liveBirthsRaw !== "" && (isNaN(liveBirths) || liveBirths < 0 || liveBirths > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Live births must be a whole number between 0 and 7.", true); return; }
+    if (miscRaw !== "" && (isNaN(misc) || misc < 0 || misc > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Miscarriages must be a whole number between 0 and 7.", true); return; }
+    if (prevPreg < 0 || prevPreg > 7 || liveBirths < 0 || liveBirths > 7 || misc < 0 || misc > 7) { showResult(document.getElementById("result-fertility-readiness"), "Previous pregnancies, Live births, and Miscarriages must be between 0 and 7.", true); return; }
+    if (yearsTry != null && (yearsTry < 0 || yearsTry > 20)) { showResult(document.getElementById("result-fertility-readiness"), "Years trying to conceive must be between 0 and 20.", true); return; }
     var medicalHistoryListEl = document.getElementById("medical-history-list");
     var medicalHistory = [];
     if (medicalHistoryListEl) {
@@ -325,21 +425,21 @@
       });
     }
     var data = {
-      age: parseInt(f.age.value, 10),
+      age: age,
       medical_history: medicalHistory,
       lifestyle_smoking: !!f.lifestyle_smoking.checked,
       lifestyle_alcohol: f.lifestyle_alcohol.value,
       lifestyle_exercise: f.lifestyle_exercise.value,
       menstrual_pattern: f.menstrual_pattern.value,
-      previous_pregnancies: parseInt(f.previous_pregnancies.value, 10) || 0,
-      live_births: parseInt(f.live_births.value, 10) || 0,
-      miscarriages: parseInt(f.miscarriages.value, 10) || 0,
+      previous_pregnancies: prevPreg,
+      live_births: liveBirths,
+      miscarriages: misc,
       use_ai_insight: !!f.use_ai_insight.checked
     };
     var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
     if (bmi != null) data.bmi = bmi;
     if (f.cycle_length_days.value) data.cycle_length_days = parseInt(f.cycle_length_days.value, 10);
-    if (f.years_trying.value) data.years_trying = parseFloat(f.years_trying.value);
+    if (yearsTry != null) data.years_trying = yearsTry;
 
     var box = document.getElementById("result-fertility-readiness");
     box.innerHTML = "<span class=\"loading\">Calculating…</span>";
@@ -388,8 +488,11 @@
     var sex = f.sex.value;
     var showFemale = sex === "female";
     var showMale = sex === "male";
+    var age = parseInt(f.age.value, 10);
+    if (isNaN(age)) { showResult(document.getElementById("result-hormonal-predictor"), "Please enter a valid age.", true); return; }
+    if (age < 21 || age > 55) { showResult(document.getElementById("result-hormonal-predictor"), "Age must be between 21 and 55.", true); return; }
     var data = {
-      age: parseInt(f.age.value, 10),
+      age: age,
       sex: sex,
       irregular_cycles: showFemale ? !!f.irregular_cycles.checked : false,
       symptoms_acne: showFemale ? !!f.symptoms_acne.checked : false,
@@ -480,29 +583,227 @@
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
   }
 
-  // --- Treatment Pathway ---
+  // --- Treatment Pathway (gender-specific dropdowns) ---
+  var pathwayDiagnosisOptions = {
+    female: [
+      { value: "tubal factor", label: "Tubal factor" },
+      { value: "PCOS", label: "PCOS" },
+      { value: "endometriosis", label: "Endometriosis" },
+      { value: "diminished ovarian reserve", label: "Diminished ovarian reserve" },
+      { value: "ovulatory disorders", label: "Ovulatory disorders" },
+      { value: "uterine factor", label: "Uterine factor" },
+      { value: "unexplained", label: "Unexplained" }
+    ],
+    male: [
+      { value: "male factor", label: "Male factor" },
+      { value: "obstructive azoospermia", label: "Obstructive azoospermia" },
+      { value: "non-obstructive azoospermia", label: "Non-obstructive azoospermia" },
+      { value: "genetic factors", label: "Genetic factors" },
+      { value: "unexplained", label: "Unexplained" }
+    ]
+  };
+  var pathwayTreatmentOptions = {
+    female: [
+      { value: "none", label: "None" },
+      { value: "ovulation induction", label: "Ovulation induction" },
+      { value: "IUI", label: "IUI" },
+      { value: "IVF", label: "IVF" },
+      { value: "surgery (laparoscopy)", label: "Surgery (laparoscopy)" }
+    ],
+    male: [
+      { value: "none", label: "None" },
+      { value: "medication", label: "Medication" },
+      { value: "surgery (varicocele)", label: "Surgery (varicocele)" },
+      { value: "sperm retrieval", label: "Sperm retrieval" },
+      { value: "IUI", label: "IUI" },
+      { value: "IVF", label: "IVF" }
+    ]
+  };
+
+  function fillSelectWithOptions(selectEl, options, placeholder) {
+    if (!selectEl) return;
+    var html = (placeholder ? "<option value=\"\">" + escapeHtml(placeholder) + "</option>" : "") +
+      options.map(function (o) { return "<option value=\"" + escapeHtml(o.value) + "\">" + escapeHtml(o.label) + "</option>"; }).join("") +
+      "<option value=\"__other__\">Other (not listed)</option>";
+    selectEl.innerHTML = html;
+  }
+
+  function pathwayFillDropdowns() {
+    var sexSelect = document.querySelector("#form-treatment-pathway select[name=sex]");
+    var diagnosisSelect = document.getElementById("pathway-known-diagnosis-select");
+    var treatmentsSelect = document.getElementById("pathway-previous-treatments-select");
+    if (!sexSelect || !diagnosisSelect || !treatmentsSelect) return;
+    var sex = (sexSelect.value || "female").toLowerCase();
+    var diagnosisOpts = pathwayDiagnosisOptions[sex] || pathwayDiagnosisOptions.female;
+    var treatmentOpts = pathwayTreatmentOptions[sex] || pathwayTreatmentOptions.female;
+    fillSelectWithOptions(diagnosisSelect, diagnosisOpts, "Select condition…");
+    fillSelectWithOptions(treatmentsSelect, treatmentOpts, "Select treatment…");
+  }
+
+  function homeIvfFillDropdowns() {
+    var sexSelect = document.querySelector("#form-home-ivf-eligibility select[name=sex]");
+    var diagnosisSelect = document.getElementById("home-ivf-known-diagnosis-select");
+    var treatmentsSelect = document.getElementById("home-ivf-previous-treatments-select");
+    if (!sexSelect || !diagnosisSelect || !treatmentsSelect) return;
+    var sex = (sexSelect.value || "female").toLowerCase();
+    var diagnosisOpts = pathwayDiagnosisOptions[sex] || pathwayDiagnosisOptions.female;
+    var treatmentOpts = pathwayTreatmentOptions[sex] || pathwayTreatmentOptions.female;
+    fillSelectWithOptions(diagnosisSelect, diagnosisOpts, "Select condition…");
+    fillSelectWithOptions(treatmentsSelect, treatmentOpts, "Select treatment…");
+  }
+
+  function isValidCustomMedicalEntry(s) {
+    if (!s || typeof s !== "string") return false;
+    var t = s.trim();
+    if (t.length < 2 || t.length > 80) return false;
+    if (t.indexOf(" ") === -1) return false;
+    return /^[\w\s\-().]+$/i.test(t);
+  }
+
+  function setupPicker(config) {
+    var selectEl = document.getElementById(config.selectId);
+    var otherWrap = document.getElementById(config.otherWrapId);
+    var otherInput = document.getElementById(config.otherInputId);
+    var addBtn = document.getElementById(config.addBtnId);
+    var listEl = document.getElementById(config.listId);
+    var added = [];
+    function toggleOther() {
+      otherWrap.hidden = selectEl.value !== "__other__";
+      if (otherWrap.hidden && otherInput) otherInput.value = "";
+    }
+    function renderList() {
+      listEl.innerHTML = "";
+      added.forEach(function (item, i) {
+        var li = document.createElement("li");
+        li.className = "medical-history-chip";
+        li.innerHTML = "<span>" + escapeHtml(item) + "</span> <button type=\"button\" class=\"chip-remove\" data-index=\"" + i + "\" aria-label=\"Remove\">&times;</button>";
+        listEl.appendChild(li);
+      });
+    }
+    function addItem() {
+      var val = selectEl.value;
+      if (val === "__other__") {
+        val = (otherInput && otherInput.value) ? otherInput.value.trim() : "";
+        if (!val) return;
+        if (!isValidCustomMedicalEntry(val)) {
+          alert("Please enter a short, descriptive phrase (e.g. 'mild male factor') with at least one space. Avoid random text.");
+          return;
+        }
+        if (otherInput) otherInput.value = "";
+      } else if (!val) return;
+      var alreadyAdded = added.some(function (item) { return item.trim().toLowerCase() === val.trim().toLowerCase(); });
+      if (alreadyAdded) return;
+      added.push(val);
+      renderList();
+      selectEl.value = "";
+      toggleOther();
+    }
+    addBtn.addEventListener("click", addItem);
+    selectEl.addEventListener("change", toggleOther);
+    if (otherInput) otherInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addItem(); } });
+    listEl.addEventListener("click", function (e) {
+      if (e.target.classList.contains("chip-remove")) {
+        var i = parseInt(e.target.getAttribute("data-index"), 10);
+        if (!isNaN(i)) { added.splice(i, 1); renderList(); }
+      }
+    });
+    return { getAdded: function () { return added.slice(); } };
+  }
+
+  (function initPathwayDropdowns() {
+    var form = document.getElementById("form-treatment-pathway");
+    if (!form) return;
+    pathwayFillDropdowns();
+    form.querySelector("select[name=sex]").addEventListener("change", pathwayFillDropdowns);
+    setupPicker({
+      selectId: "pathway-known-diagnosis-select",
+      otherWrapId: "pathway-diagnosis-other-wrap",
+      otherInputId: "pathway-diagnosis-other",
+      addBtnId: "pathway-diagnosis-add",
+      listId: "pathway-known-diagnosis-list"
+    });
+    setupPicker({
+      selectId: "pathway-previous-treatments-select",
+      otherWrapId: "pathway-treatments-other-wrap",
+      otherInputId: "pathway-treatments-other",
+      addBtnId: "pathway-treatments-add",
+      listId: "pathway-previous-treatments-list"
+    });
+    setupBMIDisplay("pathway-weight", "pathway-height", "pathway-bmi-display");
+  })();
+
+  (function initHomeIvfDropdowns() {
+    var form = document.getElementById("form-home-ivf-eligibility");
+    if (!form) return;
+    homeIvfFillDropdowns();
+    form.querySelector("select[name=sex]").addEventListener("change", homeIvfFillDropdowns);
+    setupPicker({
+      selectId: "home-ivf-known-diagnosis-select",
+      otherWrapId: "home-ivf-diagnosis-other-wrap",
+      otherInputId: "home-ivf-diagnosis-other",
+      addBtnId: "home-ivf-diagnosis-add",
+      listId: "home-ivf-known-diagnosis-list"
+    });
+    setupPicker({
+      selectId: "home-ivf-previous-treatments-select",
+      otherWrapId: "home-ivf-treatments-other-wrap",
+      otherInputId: "home-ivf-treatments-other",
+      addBtnId: "home-ivf-treatments-add",
+      listId: "home-ivf-previous-treatments-list"
+    });
+    setupBMIDisplay("home-ivf-weight", "home-ivf-height", "home-ivf-bmi-display");
+  })();
+
+  function getChipList(listId) {
+    var listEl = document.getElementById(listId);
+    if (!listEl) return [];
+    var out = [];
+    listEl.querySelectorAll(".medical-history-chip span").forEach(function (span) {
+      var t = (span.textContent || "").trim();
+      if (t) out.push(t);
+    });
+    return out;
+  }
+
   document.getElementById("form-treatment-pathway").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    var age = parseInt(f.age.value, 10);
+    var sex = f.sex.value;
+    if (isNaN(age)) { showResult(document.getElementById("result-treatment-pathway"), "Please enter a valid age.", true); return; }
+    if (age < 21 || age > 55) { showResult(document.getElementById("result-treatment-pathway"), "Age must be between 21 and 55.", true); return; }
     var data = {
-      age: parseInt(f.age.value, 10),
-      sex: f.sex.value,
-      known_diagnosis: parseList(f.known_diagnosis.value),
-      previous_treatments: parseList(f.previous_treatments.value),
+      age: age,
+      sex: sex,
+      known_diagnosis: getChipList("pathway-known-diagnosis-list"),
+      previous_treatments: getChipList("pathway-previous-treatments-list"),
       preserving_fertility: !!f.preserving_fertility.checked,
       use_ai_insight: !!f.use_ai_insight.checked
     };
     if (f.years_trying.value) data.years_trying = parseFloat(f.years_trying.value);
+    if (f.other_information && f.other_information.value.trim()) data.other_information = f.other_information.value.trim();
+    if (f.lifestyle_smoking) data.lifestyle_smoking = !!f.lifestyle_smoking.checked;
+    if (f.lifestyle_alcohol) data.lifestyle_alcohol = f.lifestyle_alcohol.value;
+    if (f.lifestyle_exercise) data.lifestyle_exercise = f.lifestyle_exercise.value;
+    if (f.weight_kg.value) data.weight_kg = parseFloat(f.weight_kg.value);
+    if (f.height_cm.value) data.height_cm = parseInt(f.height_cm.value, 10);
 
     var box = document.getElementById("result-treatment-pathway");
     box.innerHTML = "<span class=\"loading\">Getting pathway…</span>";
     box.hidden = false;
 
+    function pathwayLabel(s) {
+      if (!s || typeof s !== "string") return s;
+      var lower = s.toLowerCase();
+      if (lower === "iui") return "IUI";
+      if (lower === "ivf") return "IVF";
+      return s;
+    }
     api("POST", "/api/v1/engagement/treatment-pathway", data)
       .then(function (r) {
         var html = "<h4>Pathway</h4>";
-        if (r.primary_recommendation) html += "Primary: " + escapeHtml(r.primary_recommendation) + "\n";
-        if (r.suggested_pathways && r.suggested_pathways.length) html += "\nSuggested: " + r.suggested_pathways.map(escapeHtml).join(", ") + "\n";
+        if (r.primary_recommendation) html += "Primary: " + escapeHtml(pathwayLabel(r.primary_recommendation)) + "\n";
+        if (r.suggested_pathways && r.suggested_pathways.length) html += "\nSuggested: " + r.suggested_pathways.map(function (p) { return escapeHtml(pathwayLabel(p)); }).join(", ") + "\n";
         if (r.reasoning && r.reasoning.length) html += "\nReasoning:\n<ul><li>" + r.reasoning.map(escapeHtml).join("</li><li>") + "</li></ul>";
         if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
@@ -514,8 +815,15 @@
   document.getElementById("form-home-ivf-eligibility").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    var femaleAge = parseInt(f.female_age.value, 10);
+    if (isNaN(femaleAge) || femaleAge < 21 || femaleAge > 50) { showResult(document.getElementById("result-home-ivf-eligibility"), "Female age must be between 21 and 50.", true); return; }
+    var maleAgeVal = f.male_age.value ? parseInt(f.male_age.value, 10) : null;
+    if (maleAgeVal != null && (isNaN(maleAgeVal) || maleAgeVal < 21 || maleAgeVal > 60)) { showResult(document.getElementById("result-home-ivf-eligibility"), "Male age must be between 21 and 60.", true); return; }
     var data = {
-      female_age: parseInt(f.female_age.value, 10),
+      female_age: femaleAge,
+      sex: f.sex.value,
+      known_diagnosis: getChipList("home-ivf-known-diagnosis-list"),
+      previous_treatments: getChipList("home-ivf-previous-treatments-list"),
       medical_contraindications: parseList(f.medical_contraindications.value),
       has_consulted_specialist: !!f.has_consulted_specialist.checked,
       ovarian_reserve_known: !!f.ovarian_reserve_known.checked,
@@ -523,7 +831,13 @@
       stable_relationship_or_single_with_donor: !!f.stable_relationship_or_single_with_donor.checked,
       use_ai_insight: !!f.use_ai_insight.checked
     };
-    if (f.male_age.value) data.male_age = parseInt(f.male_age.value, 10);
+    if (maleAgeVal != null) data.male_age = maleAgeVal;
+    if (f.other_information && f.other_information.value.trim()) data.other_information = f.other_information.value.trim();
+    if (f.lifestyle_smoking) data.lifestyle_smoking = !!f.lifestyle_smoking.checked;
+    if (f.lifestyle_alcohol) data.lifestyle_alcohol = f.lifestyle_alcohol.value;
+    if (f.lifestyle_exercise) data.lifestyle_exercise = f.lifestyle_exercise.value;
+    if (f.weight_kg.value) data.weight_kg = parseFloat(f.weight_kg.value);
+    if (f.height_cm.value) data.height_cm = parseInt(f.height_cm.value, 10);
 
     var box = document.getElementById("result-home-ivf-eligibility");
     box.innerHTML = "<span class=\"loading\">Checking eligibility…</span>";
