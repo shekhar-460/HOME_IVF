@@ -23,8 +23,9 @@ def _validate_medical_list(
     allowed: frozenset,
     field_name: str,
     max_len: int = 80,
+    allowlist_only: bool = False,
 ) -> Optional[List[str]]:
-    """Validate list items: must be in allowlist or a short, readable custom value (e.g. from Other)."""
+    """Validate list items: must be in allowlist; if not allowlist_only, allow short custom 'Other' phrases."""
     if not values:
         return values
     out = []
@@ -36,16 +37,21 @@ def _validate_medical_list(
         if low in allowed:
             out.append(s)
             continue
+        if allowlist_only:
+            raise ValueError(
+                f"Invalid {field_name}: '{s[:50]}' is not a listed option. "
+                "Please choose only from the dropdown list (Known diagnosis / Previous treatments)."
+            )
         # Custom "Other" entry: require 2–max_len chars and at least one space (avoids random strings)
         if len(s) < 2 or len(s) > max_len:
             raise ValueError(
                 f"Invalid {field_name}: '{s[:50]}...' is too short or too long. "
-                "Please choose from the list or enter a short, descriptive phrase (e.g. 'mild male factor')."
+                "Please choose from the list or enter a short, descriptive phrase."
             )
         if " " not in s:
             raise ValueError(
                 f"Invalid {field_name}: '{s[:50]}' doesn't look like a diagnosis/treatment. "
-                "Please choose from the list or enter a short phrase with spaces (e.g. 'mild male factor')."
+                "Please choose from the list or enter a short phrase with spaces."
             )
         # Allow only letters, numbers, spaces, hyphens, parentheses
         if not re.match(r"^[\w\s\-().]+$", s, re.IGNORECASE):
@@ -66,8 +72,8 @@ class MenstrualPattern(str, Enum):
 
 
 class FertilityReadinessRequest(BaseModel):
-    """Input for fertility readiness score (female patient; minimum age 21)."""
-    age: int = Field(..., ge=21, le=55, description="Age in years (female minimum 21)")
+    """Input for fertility readiness score (female patient; age 21–50)."""
+    age: int = Field(..., ge=21, le=50, description="Age in years (female 21–50)")
     medical_history: Optional[List[str]] = Field(
         default=[],
         description="e.g. PCOS, endometriosis, thyroid, diabetes, prior surgery"
@@ -107,7 +113,7 @@ class FertilityReadinessResponse(BaseModel):
 
 class HormonalPredictorRequest(BaseModel):
     """Questionnaire + data for when to test AMH, semen analysis, or specialist."""
-    age: int = Field(..., ge=21, le=55, description="Patient age (minimum 21 for female and male)")
+    age: int = Field(..., ge=21, le=55, description="Patient age (female 21–50, male 21–55)")
     sex: str = Field(..., description="female / male")
     irregular_cycles: bool = Field(default=False)
     cycle_length_days: Optional[int] = Field(default=None, ge=21, le=45)
@@ -171,7 +177,7 @@ class VisualHealthResponse(BaseModel):
 
 class TreatmentPathwayRequest(BaseModel):
     """Input for recommending natural conception, IUI, IVF, or fertility preservation."""
-    age: int = Field(..., ge=21, le=55, description="Patient age (minimum 21 for female and male)")
+    age: int = Field(..., ge=21, le=55, description="Patient age (female 21–50, male 21–55)")
     sex: str = Field(..., description="female / male")
     years_trying: Optional[float] = Field(default=None, ge=0, le=20)
     known_diagnosis: Optional[List[str]] = Field(
@@ -216,7 +222,7 @@ class TreatmentPathwayResponse(BaseModel):
 class HomeIVFEligibilityRequest(BaseModel):
     """Couple/patient info for Home IVF suitability."""
     female_age: int = Field(..., ge=21, le=50, description="Female patient age (minimum 21)")
-    male_age: Optional[int] = Field(default=None, ge=21, le=60, description="Male patient age (minimum 21)")
+    male_age: Optional[int] = Field(default=None, ge=21, le=55, description="Male patient age (21–55)")
     sex: Optional[str] = Field(default="female", description="female / male, for diagnosis/treatment context")
     known_diagnosis: Optional[List[str]] = Field(default=[], description="e.g. tubal factor, male factor, PCOS")
     previous_treatments: Optional[List[str]] = Field(default=[], description="e.g. IUI, ovulation induction")

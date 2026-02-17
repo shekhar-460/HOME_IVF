@@ -23,11 +23,13 @@ class TestFertilityReadinessSchemas:
         assert r.use_ai_insight is True
 
     def test_request_age_bounds(self):
-        """Female minimum age is 21 for fertility readiness."""
+        """Female age 21–50 for fertility readiness."""
         with pytest.raises(ValidationError):
             FertilityReadinessRequest(age=20, menstrual_pattern="regular")
         with pytest.raises(ValidationError):
-            FertilityReadinessRequest(age=56, menstrual_pattern="regular")
+            FertilityReadinessRequest(age=51, menstrual_pattern="regular")
+        FertilityReadinessRequest(age=21, menstrual_pattern="regular")
+        FertilityReadinessRequest(age=50, menstrual_pattern="regular")
 
     def test_response_risk_levels(self):
         for level in ("low", "moderate", "high"):
@@ -123,3 +125,10 @@ class TestHomeIVFEligibilitySchemas:
             HomeIVFEligibilityRequest(female_age=25, male_age=20)
         r = HomeIVFEligibilityRequest(female_age=25, male_age=21)
         assert r.male_age == 21
+
+    def test_request_male_max_age_55(self):
+        """Male age maximum is 55 when provided."""
+        with pytest.raises(ValidationError):
+            HomeIVFEligibilityRequest(female_age=25, male_age=56)
+        r = HomeIVFEligibilityRequest(female_age=25, male_age=55)
+        assert r.male_age == 55

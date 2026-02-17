@@ -8,6 +8,8 @@ import logging
 import re
 
 from app.models.engagement_schemas import (
+    ALLOWED_DIAGNOSIS,
+    ALLOWED_TREATMENTS,
     FertilityReadinessRequest,
     FertilityReadinessResponse,
     HormonalPredictorRequest,
@@ -25,6 +27,51 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Message shown in AI insight when user enters custom diagnosis/treatment text that doesn't look meaningful.
+CUSTOM_ENTRIES_NONSENSE_MESSAGE = (
+    "Some of the terms you entered in diagnosis or previous treatments don't appear to be standard options. "
+    "For more accurate guidance, please use the dropdown list where possible."
+)
+
+
+def _split_allowlist_and_custom(
+    values: Optional[List[str]], allowed: frozenset
+) -> Tuple[List[str], List[str]]:
+    """Split diagnosis or treatment list into (allowlist_values, custom_values)."""
+    if not values:
+        return [], []
+    allowlist: List[str] = []
+    custom: List[str] = []
+    for v in values:
+        s = (v or "").strip()
+        if not s:
+            continue
+        if s.lower() in allowed:
+            allowlist.append(s)
+        else:
+            custom.append(s)
+    return allowlist, custom
+
+
+def _custom_entry_looks_nonsense(s: str) -> bool:
+    """Heuristic: custom text that doesn't look like a real diagnosis/treatment (e.g. random alphanumeric)."""
+    s = (s or "").strip()
+    if len(s) < 2:
+        return True
+    # High digit ratio suggests random numbers/typos
+    digits = sum(1 for c in s if c.isdigit())
+    if digits / len(s) > 0.35:
+        return True
+    # Token with 4+ chars and no vowel often looks like nonsense (e.g. KDCND, xyzq)
+    vowels = set("aeiou")
+    for token in re.split(r"[\s\-().]+", s):
+        if not token:
+            continue
+        if len(token) >= 4 and not any(c.lower() in vowels for c in token):
+            return True
+    return False
+
+
 # Canonical fertility-relevant conditions and accepted variations (lowercase, no extra spaces).
 # Only recognized conditions are used in scoring; unrecognized entries are reported and not scored.
 MEDICAL_HISTORY_CANONICAL: List[Tuple[str, Set[str]]] = [
@@ -32,6 +79,7 @@ MEDICAL_HISTORY_CANONICAL: List[Tuple[str, Set[str]]] = [
     ("Endometriosis", {"endometriosis", "endo"}),
     ("Thyroid disorder", {"thyroid", "hypothyroid", "hyperthyroid", "hypothyroidism", "hyperthyroidism"}),
     ("Diabetes", {"diabetes", "diabetic", "type 1", "type 2", "prediabetes"}),
+    ("High blood pressure", {"high blood pressure", "hypertension", "hypertensive", "high bp", "elevated blood pressure", "htn"}),
     ("Prior pelvic/fertility surgery", {"prior surgery", "surgery", "pelvic surgery", "fertility surgery", "laparoscopy", "laparoscopic"}),
     ("Tubal factor", {"tubal", "tubal factor", "blocked tubes", "tubal blockage", "fallopian"}),
 ]
@@ -232,6 +280,10 @@ class EngagementService:
             when_to_test = "Testing is typically done early in the menstrual cycle (day 2–5) for AMH; semen analysis can be scheduled as per lab advice. Consult your doctor for timing."
         if suggest_specialist:
             when_to_test = (when_to_test + " " if when_to_test else "") + "Booking a fertility consultation is recommended to interpret results and plan next steps."
+        # When no specific suggestions (no symptoms / no risk factors), still return a clear message so the UI is never empty
+        if not suggest_amh and not suggest_semen and not suggest_specialist and not reasoning:
+            when_to_test = "Based on your inputs, no specific tests are recommended at this time. For routine preconception or fertility awareness, you can discuss options with your doctor."
+            reasoning = ["Your age and answers do not suggest a need for AMH, semen analysis, or specialist referral right now. This is not medical advice—consult a doctor for your situation."]
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
@@ -346,8 +398,12 @@ class EngagementService:
         """Recommend natural conception support, IUI, IVF, or fertility preservation based on age, diagnosis, previous treatments, and duration trying."""
         pathways: List[str] = []
         reasoning: List[str] = []
-        diagnosis_text = " ".join(req.known_diagnosis or []).lower()
-        previous_text = " ".join(req.previous_treatments or []).lower()
+        # Use only allowlist entries for pathway logic; custom "Other" text is not used to avoid nonsense affecting result
+        diag_allowlist, diag_custom = _split_allowlist_and_custom(req.known_diagnosis, ALLOWED_DIAGNOSIS)
+        treat_allowlist, treat_custom = _split_allowlist_and_custom(req.previous_treatments, ALLOWED_TREATMENTS)
+        diagnosis_text = " ".join(diag_allowlist).lower()
+        previous_text = " ".join(treat_allowlist).lower()
+        custom_nonsense = any(_custom_entry_looks_nonsense(e) for e in diag_custom + treat_custom)
         years = req.years_trying
 
         # 1) Fertility preservation: explicit interest or age 38+
@@ -359,7 +415,7 @@ class EngagementService:
             reasoning.append("Age 38+ may warrant discussion of fertility preservation with a specialist.")
 
         # 2) Diagnosis-driven: strong indicators for IVF vs IUI
-        if req.known_diagnosis:
+        if diag_allowlist:
             if any(k in diagnosis_text for k in ("tubal", "male factor", "severe", "azoospermia", "blocked tube")):
                 pathways.append("ivf")
                 reasoning.append("Diagnoses such as tubal factor, significant male factor, or azoospermia often lead to IVF discussion with a specialist.")
@@ -368,7 +424,7 @@ class EngagementService:
                 reasoning.append("Ovulation issues, PCOS, or mild male factor may be addressed with IUI or ovulation induction; a specialist can advise.")
 
         # 3) Previous treatments: failed or repeated IUI → consider IVF; already did IVF → keep IVF in pathway
-        if req.previous_treatments:
+        if treat_allowlist:
             if "ivf" in previous_text:
                 pathways.append("ivf")
                 reasoning.append("You have already had or considered IVF; a specialist can advise on next steps.")
@@ -425,16 +481,26 @@ class EngagementService:
         suggested_display = [_pathway_display(p) for p in pathways]
         primary_display = _pathway_display(primary)
 
+        # Explain in the final result when custom entries didn't look like standard options
+        if custom_nonsense:
+            reasoning.append(
+                "Some terms you entered in diagnosis or previous treatments don't appear to be standard options. "
+                "The pathway above is based only on the options you chose from the dropdown list. "
+                "For more accurate guidance, please use the dropdown list where possible."
+            )
+
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
             q = (
                 f"Very brief: what treatment pathway might be considered for age {req.age}, "
-                f"years trying {req.years_trying}, diagnosis {req.known_diagnosis}? "
+                f"years trying {req.years_trying}, diagnosis {diag_allowlist or []}? "
                 "Natural conception, IUI, or IVF. 2–3 sentences only. IVF context."
             )
             if req.other_information:
                 q += " Other info: " + (req.other_information or "")
             ai_insight = self._get_ai_insight(q, req.language or "en")
+        if custom_nonsense:
+            ai_insight = (ai_insight + " " + CUSTOM_ENTRIES_NONSENSE_MESSAGE) if ai_insight else CUSTOM_ENTRIES_NONSENSE_MESSAGE
 
         return TreatmentPathwayResponse(
             suggested_pathways=suggested_display,
@@ -469,8 +535,11 @@ class EngagementService:
         missing: List[str] = []
         prompt_consultation = True
         contraindications = self._normalize_contraindications(req.medical_contraindications)
-        diagnosis_text = " ".join(req.known_diagnosis or []).lower()
-        previous_text = " ".join(req.previous_treatments or []).lower()
+        diag_allowlist, diag_custom = _split_allowlist_and_custom(req.known_diagnosis, ALLOWED_DIAGNOSIS)
+        treat_allowlist, treat_custom = _split_allowlist_and_custom(req.previous_treatments, ALLOWED_TREATMENTS)
+        diagnosis_text = " ".join(diag_allowlist).lower()
+        previous_text = " ".join(treat_allowlist).lower()
+        custom_nonsense = any(_custom_entry_looks_nonsense(e) for e in diag_custom + treat_custom)
 
         # Hard ineligibility: female age > 45
         if req.female_age > 45:
@@ -484,14 +553,14 @@ class EngagementService:
             reasons.append("Male age 50+ may warrant discussion of semen quality and suitability with a specialist.")
 
         # Diagnosis: some require specialist review (do not automatically set ineligible)
-        if req.known_diagnosis:
+        if diag_allowlist:
             if any(k in diagnosis_text for k in ("tubal", "severe", "azoospermia", "blocked tube")):
                 reasons.append("Some diagnoses (e.g. tubal factor, severe male factor) may require specialist review before Home IVF.")
             if "pcos" in diagnosis_text or "pcod" in diagnosis_text:
                 reasons.append("PCOS can be managed in Home IVF; ovarian reserve and protocol should be confirmed with a specialist.")
 
         # Previous treatments: OHSS or multiple IVF may need mention
-        if req.previous_treatments:
+        if treat_allowlist:
             if "ohss" in previous_text or "hyperstimulation" in previous_text:
                 eligible = False
                 reasons.append("Previous OHSS or hyperstimulation history is a consideration for Home IVF; specialist review is important.")
@@ -517,6 +586,14 @@ class EngagementService:
         if not reasons:
             reasons.append("Based on the information provided, you may be a candidate for Home IVF; a consultation will confirm.")
 
+        # Explain in the final result when custom entries didn't look like standard options
+        if custom_nonsense:
+            reasons.append(
+                "Some terms you entered in diagnosis or previous treatments don't appear to be standard options. "
+                "The eligibility above is based only on the options you chose from the dropdown list. "
+                "For more accurate guidance, please use the dropdown list where possible."
+            )
+
         if eligible:
             booking_message = "Book a consultation to confirm eligibility and discuss your Home IVF plan."
         else:
@@ -528,11 +605,13 @@ class EngagementService:
                 "One sentence: who might be suitable for Home IVF and what they should do next. "
                 "Encourage consultation. IVF context only."
             )
-            if req.known_diagnosis or req.previous_treatments or req.other_information:
-                q += " Diagnosis: " + str(req.known_diagnosis or []) + ". Previous treatments: " + str(req.previous_treatments or [])
+            if diag_allowlist or treat_allowlist or req.other_information:
+                q += " Diagnosis: " + str(diag_allowlist) + ". Previous treatments: " + str(treat_allowlist)
                 if req.other_information:
                     q += " Other info: " + (req.other_information or "")
             ai_insight = self._get_ai_insight(q, req.language or "en")
+        if custom_nonsense:
+            ai_insight = (ai_insight + " " + CUSTOM_ENTRIES_NONSENSE_MESSAGE) if ai_insight else CUSTOM_ENTRIES_NONSENSE_MESSAGE
 
         return HomeIVFEligibilityResponse(
             eligible=eligible,

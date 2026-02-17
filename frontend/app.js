@@ -128,20 +128,31 @@
     return Math.round(bmi * 10) / 10;
   }
 
-  function setupBMIDisplay(weightId, heightId, displayId) {
+  var BMI_RANGE = { min: 15, max: 50 };
+  function setupBMIDisplay(weightId, heightId, displayId, options) {
     var weightEl = document.getElementById(weightId);
     var heightEl = document.getElementById(heightId);
     var displayEl = document.getElementById(displayId);
     if (!weightEl || !heightEl || !displayEl) return;
+    var minBmi = (options && options.minBmi != null) ? options.minBmi : null;
+    var maxBmi = (options && options.maxBmi != null) ? options.maxBmi : null;
     function update() {
       var bmi = calcBMI(weightEl.value, heightEl.value);
-      displayEl.textContent = bmi != null ? "BMI: " + bmi + " (from weight & height)" : "BMI will be calculated from weight and height.";
+      var outOfRange = bmi != null && ((minBmi != null && bmi < minBmi) || (maxBmi != null && bmi > maxBmi));
+      if (bmi != null) {
+        displayEl.textContent = "BMI: " + bmi + " (from weight & height)";
+        if (outOfRange && minBmi != null && maxBmi != null) displayEl.textContent += ". Must be between " + minBmi + " and " + maxBmi + ".";
+        displayEl.classList.toggle("bmi-out-of-range", !!outOfRange);
+      } else {
+        displayEl.textContent = "BMI will be calculated from weight and height.";
+        displayEl.classList.remove("bmi-out-of-range");
+      }
     }
     weightEl.addEventListener("input", update);
     heightEl.addEventListener("input", update);
   }
-  setupBMIDisplay("fertility-weight", "fertility-height", "fertility-bmi-display");
-  setupBMIDisplay("visual-weight", "visual-height", "visual-bmi-display");
+  setupBMIDisplay("fertility-weight", "fertility-height", "fertility-bmi-display", { minBmi: BMI_RANGE.min, maxBmi: BMI_RANGE.max });
+  setupBMIDisplay("visual-weight", "visual-height", "visual-bmi-display", { minBmi: BMI_RANGE.min, maxBmi: BMI_RANGE.max });
 
   function api(method, path, body) {
     const opts = {
@@ -165,13 +176,76 @@
     });
   }
 
+  // --- Navigation (single place for "opening" a page/panel) ---
+  var NAV = {
+    DEFAULT_PANEL: "home",
+    PANEL_IDS: ["home", "chat", "fertility-readiness", "hormonal-predictor", "visual-health", "treatment-pathway", "home-ivf-eligibility"],
+
+    normalize: function (id) {
+      var s = (id && String(id).trim()) || "";
+      return s || this.DEFAULT_PANEL;
+    },
+
+    isValid: function (panelId) {
+      return this.PANEL_IDS.indexOf(panelId) !== -1;
+    },
+
+    openPage: function (panelId) {
+      var id = this.normalize(panelId);
+      if (!this.isValid(id)) id = this.DEFAULT_PANEL;
+
+      document.querySelectorAll(".panel").forEach(function (p) { p.classList.remove("active"); });
+      document.querySelectorAll(".nav-link").forEach(function (a) { a.classList.remove("active"); });
+      var panel = document.getElementById(id);
+      var link = document.querySelector('.nav-link[href="#' + id + '"]');
+      if (panel) panel.classList.add("active");
+      if (link) link.classList.add("active");
+
+      if (window.location.hash.slice(1) !== id) {
+        window.location.replace("#" + id);
+      }
+      // When a tool is opened (via nav or button), show it from the start
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+
+    getPanelIdFromHash: function () {
+      var hash = window.location.hash.slice(1).trim();
+      return this.isValid(hash) ? hash : this.DEFAULT_PANEL;
+    },
+
+    init: function (options) {
+      var self = this;
+      options = options || {};
+      var useHashOnLoad = options.useHashOnLoad !== false; // default true: respect hash on load for deep links
+
+      function handleHashLink(e, immediate) {
+        var a = e.target && e.target.closest && e.target.closest("a[href^='#']");
+        if (!a) return;
+        var href = a.getAttribute("href");
+        if (!href || href === "#") return;
+        var id = href.slice(1).trim();
+        if (!id) return;
+        e.preventDefault();
+        if (immediate) self.openPage(id);
+        else requestAnimationFrame(function () { self.openPage(id); });
+      }
+
+      document.addEventListener("pointerdown", function (e) { handleHashLink(e, true); }, true);
+      document.addEventListener("click", function (e) { handleHashLink(e, false); }, true);
+      window.addEventListener("hashchange", function () {
+        self.openPage(self.getPanelIdFromHash());
+      });
+
+      if (useHashOnLoad) {
+        this.openPage(this.getPanelIdFromHash());
+      } else {
+        this.openPage(this.DEFAULT_PANEL);
+      }
+    }
+  };
+
   function setActivePanel(id) {
-    document.querySelectorAll(".panel").forEach(function (p) { p.classList.remove("active"); });
-    document.querySelectorAll(".nav-link").forEach(function (a) { a.classList.remove("active"); });
-    var panel = document.getElementById(id);
-    var link = document.querySelector('.nav-link[href="#' + id + '"]');
-    if (panel) panel.classList.add("active");
-    if (link) link.classList.add("active");
+    NAV.openPage(id);
   }
 
   function showResult(el, content, isError) {
@@ -192,22 +266,9 @@
     }
   }
 
-  // --- Navigation ---
-  document.querySelectorAll(".nav-link").forEach(function (a) {
-    a.addEventListener("click", function (e) {
-      var href = a.getAttribute("href");
-      if (href && href.startsWith("#")) {
-        e.preventDefault();
-        setActivePanel(href.slice(1));
-      }
-    });
-  });
-  window.addEventListener("hashchange", function () {
-    var hash = window.location.hash.slice(1);
-    if (hash) setActivePanel(hash);
-  });
-  if (window.location.hash) setActivePanel(window.location.hash.slice(1));
-  else setActivePanel("home");
+  // Initialize navigation: default open at /#home on every refresh
+  NAV.init({ useHashOnLoad: false });
+
 
   // --- Page translation (googletrans) ---
   var translateSelect = document.getElementById("translate-select");
@@ -432,12 +493,14 @@
     var liveBirths = liveBirthsRaw === "" ? 0 : parseInt(f.live_births.value, 10);
     var misc = miscRaw === "" ? 0 : parseInt(f.miscarriages.value, 10);
     var yearsTry = f.years_trying.value ? parseFloat(f.years_trying.value) : null;
-    if (isNaN(age) || age < 21 || age > 55) { showResult(document.getElementById("result-fertility-readiness"), "Please enter age between 21 and 55 (female minimum age is 21).", true); return; }
+    if (isNaN(age) || age < 21 || age > 50) { showResult(document.getElementById("result-fertility-readiness"), "Please enter age between 21 and 50 (female).", true); return; }
     if (prevPregRaw !== "" && (isNaN(prevPreg) || prevPreg < 0 || prevPreg > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Previous pregnancies must be a whole number between 0 and 7.", true); return; }
     if (liveBirthsRaw !== "" && (isNaN(liveBirths) || liveBirths < 0 || liveBirths > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Live births must be a whole number between 0 and 7.", true); return; }
     if (miscRaw !== "" && (isNaN(misc) || misc < 0 || misc > 7)) { showResult(document.getElementById("result-fertility-readiness"), "Miscarriages must be a whole number between 0 and 7.", true); return; }
     if (prevPreg < 0 || prevPreg > 7 || liveBirths < 0 || liveBirths > 7 || misc < 0 || misc > 7) { showResult(document.getElementById("result-fertility-readiness"), "Previous pregnancies, Live births, and Miscarriages must be between 0 and 7.", true); return; }
     if (yearsTry != null && (yearsTry < 0 || yearsTry > 20)) { showResult(document.getElementById("result-fertility-readiness"), "Years trying to conceive must be between 0 and 20.", true); return; }
+    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (bmi != null && (bmi < 15 || bmi > 50)) { showResult(document.getElementById("result-fertility-readiness"), "BMI must be between 15 and 50 for this calculator. Please adjust weight or height.", true); return; }
     var medicalHistoryListEl = document.getElementById("medical-history-list");
     var medicalHistory = [];
     if (medicalHistoryListEl) {
@@ -458,7 +521,6 @@
       miscarriages: misc,
       use_ai_insight: !!f.use_ai_insight.checked
     };
-    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
     if (bmi != null) data.bmi = bmi;
     if (f.cycle_length_days.value) data.cycle_length_days = parseInt(f.cycle_length_days.value, 10);
     if (yearsTry != null) data.years_trying = yearsTry;
@@ -476,7 +538,12 @@
         if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
-      .catch(function (err) { showResult(box, "Error: " + err.message, true); });
+      .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : "Something went wrong.";
+        if (msg.indexOf("50") !== -1 || /bmi|15|validation/i.test(msg)) msg = "BMI must be between 15 and 50. Please adjust weight or height.";
+        else if (msg === "Failed to fetch") msg = "Could not reach the server. Check your connection, or adjust weight/height so BMI is between 15 and 50 and try again.";
+        showResult(box, msg, true);
+      });
   });
 
   // --- Hormonal Predictor: show female block for Female only, male block for Male only ---
@@ -512,7 +579,8 @@
     var showMale = sex === "male";
     var age = parseInt(f.age.value, 10);
     if (isNaN(age)) { showResult(document.getElementById("result-hormonal-predictor"), "Please enter a valid age.", true); return; }
-    if (age < 21 || age > 55) { showResult(document.getElementById("result-hormonal-predictor"), "Age must be between 21 and 55.", true); return; }
+    if (showFemale && (age < 21 || age > 50)) { showResult(document.getElementById("result-hormonal-predictor"), "Age for female must be between 21 and 50.", true); return; }
+    if (showMale && (age < 21 || age > 55)) { showResult(document.getElementById("result-hormonal-predictor"), "Age for male must be between 21 and 55.", true); return; }
     var data = {
       age: age,
       sex: sex,
@@ -535,12 +603,13 @@
     api("POST", "/api/v1/engagement/hormonal-predictor", data)
       .then(function (r) {
         var html = "<h4>Suggestions</h4>";
-        if (r.when_to_test) html += escapeHtml(r.when_to_test) + "\n";
-        if (r.suggest_amh) html += "• Suggest AMH test\n";
-        if (r.suggest_semen_analysis) html += "• Suggest semen analysis\n";
-        if (r.suggest_specialist) html += "• Suggest specialist visit\n";
-        if (r.reasoning && r.reasoning.length) html += "\nReasoning:\n<ul><li>" + r.reasoning.map(escapeHtml).join("</li><li>") + "</li></ul>";
+        if (r.when_to_test) html += "<p>" + escapeHtml(r.when_to_test) + "</p>";
+        if (r.suggest_amh) html += "<p>• Suggest AMH test</p>";
+        if (r.suggest_semen_analysis) html += "<p>• Suggest semen analysis</p>";
+        if (r.suggest_specialist) html += "<p>• Suggest specialist visit</p>";
+        if (r.reasoning && r.reasoning.length) html += "<p class=\"result-section-title\"><strong>Reasoning</strong></p><ul><li>" + r.reasoning.map(escapeHtml).join("</li><li>") + "</li></ul>";
         if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
+        if (!r.when_to_test && !r.suggest_amh && !r.suggest_semen_analysis && !r.suggest_specialist && (!r.reasoning || !r.reasoning.length) && !r.ai_insight) html += "<p>Based on your inputs, no specific tests are recommended at this time. For routine preconception or fertility awareness, discuss options with your doctor.</p>";
         showResult(box, html, false);
       })
       .catch(function (err) { showResult(box, "Error: " + err.message, true); });
@@ -550,10 +619,14 @@
   document.getElementById("form-visual-health").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.target;
+    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (bmi != null && (bmi < 15 || bmi > 50)) {
+      showResult(document.getElementById("result-visual-health"), "BMI must be between 15 and 50. Please adjust weight or height.", true);
+      return;
+    }
     var data = { use_ai_insight: !!f.use_ai_insight.checked };
     if (f.self_reported_sleep_hours.value) data.self_reported_sleep_hours = parseFloat(f.self_reported_sleep_hours.value);
     if (f.self_reported_stress_level.value) data.self_reported_stress_level = f.self_reported_stress_level.value;
-    var bmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
     if (bmi != null) data.self_reported_bmi = bmi;
 
     var fileInput = document.getElementById("visual-health-image");
@@ -602,7 +675,12 @@
         if (r.disclaimer) html += "<p class=\"result-disclaimer\">" + escapeHtml(r.disclaimer) + "</p>";
         showResult(box, html, false);
       })
-      .catch(function (err) { showResult(box, "Error: " + err.message, true); });
+      .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : "Something went wrong.";
+        if (msg.indexOf("50") !== -1 || /bmi|15|validation/i.test(msg)) msg = "BMI must be between 15 and 50. Please adjust weight or height.";
+        else if (msg === "Failed to fetch") msg = "Could not reach the server. Check your connection, or adjust weight/height so BMI is between 15 and 50 and try again.";
+        showResult(box, msg, true);
+      });
   }
 
   // --- Treatment Pathway (gender-specific dropdowns) ---
@@ -642,11 +720,12 @@
     ]
   };
 
-  function fillSelectWithOptions(selectEl, options, placeholder) {
+  function fillSelectWithOptions(selectEl, options, placeholder, includeOther) {
     if (!selectEl) return;
+    if (includeOther === undefined) includeOther = true;
     var html = (placeholder ? "<option value=\"\">" + escapeHtml(placeholder) + "</option>" : "") +
-      options.map(function (o) { return "<option value=\"" + escapeHtml(o.value) + "\">" + escapeHtml(o.label) + "</option>"; }).join("") +
-      "<option value=\"__other__\">Other (not listed)</option>";
+      options.map(function (o) { return "<option value=\"" + escapeHtml(o.value) + "\">" + escapeHtml(o.label) + "</option>"; }).join("");
+    if (includeOther) html += "<option value=\"__other__\">Other (not listed)</option>";
     selectEl.innerHTML = html;
   }
 
@@ -682,6 +761,27 @@
     return /^[\w\s\-().]+$/i.test(t);
   }
 
+  /** Mirrors backend heuristic: text that doesn't look like a real diagnosis/treatment (e.g. random alphanumeric). */
+  function customEntryLooksNonsense(s) {
+    if (!s || typeof s !== "string") return true;
+    var t = s.trim();
+    if (t.length < 2) return true;
+    var digits = 0;
+    for (var i = 0; i < t.length; i++) if (t[i] >= "0" && t[i] <= "9") digits++;
+    if (digits / t.length > 0.35) return true;
+    var tokens = t.split(/[\s\-().]+/);
+    var vowels = "aeiou";
+    for (var j = 0; j < tokens.length; j++) {
+      var tok = tokens[j];
+      if (tok.length >= 4) {
+        var hasVowel = false;
+        for (var k = 0; k < tok.length; k++) if (vowels.indexOf(tok[k].toLowerCase()) !== -1) { hasVowel = true; break; }
+        if (!hasVowel) return true;
+      }
+    }
+    return false;
+  }
+
   function setupPicker(config) {
     var selectEl = document.getElementById(config.selectId);
     var otherWrap = document.getElementById(config.otherWrapId);
@@ -702,13 +802,18 @@
         listEl.appendChild(li);
       });
     }
+    var rejectNonsense = !!config.rejectNonsense;
     function addItem() {
       var val = selectEl.value;
       if (val === "__other__") {
         val = (otherInput && otherInput.value) ? otherInput.value.trim() : "";
         if (!val) return;
         if (!isValidCustomMedicalEntry(val)) {
-          alert("Please enter a short, descriptive phrase (e.g. 'mild male factor') with at least one space. Avoid random text.");
+          alert("Please enter a short, descriptive phrase with at least one space. Avoid random text.");
+          return;
+        }
+        if (rejectNonsense && customEntryLooksNonsense(val)) {
+          alert("This doesn't look like a standard diagnosis or treatment. Please choose from the dropdown list for accurate guidance, or enter a clear descriptive phrase.");
           return;
         }
         if (otherInput) otherInput.value = "";
@@ -729,51 +834,66 @@
         if (!isNaN(i)) { added.splice(i, 1); renderList(); }
       }
     });
-    return { getAdded: function () { return added.slice(); } };
+    function clear() { added.length = 0; renderList(); }
+    return { getAdded: function () { return added.slice(); }, clear: clear };
   }
 
   (function initPathwayDropdowns() {
     var form = document.getElementById("form-treatment-pathway");
     if (!form) return;
-    pathwayFillDropdowns();
-    form.querySelector("select[name=sex]").addEventListener("change", pathwayFillDropdowns);
-    setupPicker({
+    var sexSelect = form.querySelector("select[name=sex]");
+    var pathwayDiagnosisPicker = setupPicker({
       selectId: "pathway-known-diagnosis-select",
       otherWrapId: "pathway-diagnosis-other-wrap",
       otherInputId: "pathway-diagnosis-other",
       addBtnId: "pathway-diagnosis-add",
-      listId: "pathway-known-diagnosis-list"
+      listId: "pathway-known-diagnosis-list",
+      rejectNonsense: true
     });
-    setupPicker({
+    var pathwayTreatmentsPicker = setupPicker({
       selectId: "pathway-previous-treatments-select",
       otherWrapId: "pathway-treatments-other-wrap",
       otherInputId: "pathway-treatments-other",
       addBtnId: "pathway-treatments-add",
-      listId: "pathway-previous-treatments-list"
+      listId: "pathway-previous-treatments-list",
+      rejectNonsense: true
     });
-    setupBMIDisplay("pathway-weight", "pathway-height", "pathway-bmi-display");
+    pathwayFillDropdowns();
+    sexSelect.addEventListener("change", function () {
+      pathwayFillDropdowns();
+      if (pathwayDiagnosisPicker.clear) pathwayDiagnosisPicker.clear();
+      if (pathwayTreatmentsPicker.clear) pathwayTreatmentsPicker.clear();
+    });
+    setupBMIDisplay("pathway-weight", "pathway-height", "pathway-bmi-display", { minBmi: BMI_RANGE.min, maxBmi: BMI_RANGE.max });
   })();
 
   (function initHomeIvfDropdowns() {
     var form = document.getElementById("form-home-ivf-eligibility");
     if (!form) return;
-    homeIvfFillDropdowns();
-    form.querySelector("select[name=sex]").addEventListener("change", homeIvfFillDropdowns);
-    setupPicker({
+    var sexSelect = form.querySelector("select[name=sex]");
+    var homeIvfDiagnosisPicker = setupPicker({
       selectId: "home-ivf-known-diagnosis-select",
       otherWrapId: "home-ivf-diagnosis-other-wrap",
       otherInputId: "home-ivf-diagnosis-other",
       addBtnId: "home-ivf-diagnosis-add",
-      listId: "home-ivf-known-diagnosis-list"
+      listId: "home-ivf-known-diagnosis-list",
+      rejectNonsense: true
     });
-    setupPicker({
+    var homeIvfTreatmentsPicker = setupPicker({
       selectId: "home-ivf-previous-treatments-select",
       otherWrapId: "home-ivf-treatments-other-wrap",
       otherInputId: "home-ivf-treatments-other",
       addBtnId: "home-ivf-treatments-add",
-      listId: "home-ivf-previous-treatments-list"
+      listId: "home-ivf-previous-treatments-list",
+      rejectNonsense: true
     });
-    setupBMIDisplay("home-ivf-weight", "home-ivf-height", "home-ivf-bmi-display");
+    homeIvfFillDropdowns();
+    sexSelect.addEventListener("change", function () {
+      homeIvfFillDropdowns();
+      if (homeIvfDiagnosisPicker.clear) homeIvfDiagnosisPicker.clear();
+      if (homeIvfTreatmentsPicker.clear) homeIvfTreatmentsPicker.clear();
+    });
+    setupBMIDisplay("home-ivf-weight", "home-ivf-height", "home-ivf-bmi-display", { minBmi: BMI_RANGE.min, maxBmi: BMI_RANGE.max });
   })();
 
   function getChipList(listId) {
@@ -793,7 +913,10 @@
     var age = parseInt(f.age.value, 10);
     var sex = f.sex.value;
     if (isNaN(age)) { showResult(document.getElementById("result-treatment-pathway"), "Please enter a valid age.", true); return; }
-    if (age < 21 || age > 55) { showResult(document.getElementById("result-treatment-pathway"), "Age must be between 21 and 55.", true); return; }
+    if (sex === "female" && (age < 21 || age > 50)) { showResult(document.getElementById("result-treatment-pathway"), "Age for female must be between 21 and 50.", true); return; }
+    if (sex === "male" && (age < 21 || age > 55)) { showResult(document.getElementById("result-treatment-pathway"), "Age for male must be between 21 and 55.", true); return; }
+    var pathwayBmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (pathwayBmi != null && (pathwayBmi < 15 || pathwayBmi > 50)) { showResult(document.getElementById("result-treatment-pathway"), "BMI must be between 15 and 50. Please adjust weight or height.", true); return; }
     var data = {
       age: age,
       sex: sex,
@@ -830,7 +953,12 @@
         if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
-      .catch(function (err) { showResult(box, "Error: " + err.message, true); });
+      .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : "Something went wrong.";
+        if (msg.indexOf("50") !== -1 || /bmi|15|validation/i.test(msg)) msg = "BMI must be between 15 and 50. Please adjust weight or height.";
+        else if (msg === "Failed to fetch") msg = "Could not reach the server. Check your connection, or adjust weight/height so BMI is between 15 and 50 and try again.";
+        showResult(box, msg, true);
+      });
   });
 
   // --- Home IVF Eligibility ---
@@ -840,7 +968,9 @@
     var femaleAge = parseInt(f.female_age.value, 10);
     if (isNaN(femaleAge) || femaleAge < 21 || femaleAge > 50) { showResult(document.getElementById("result-home-ivf-eligibility"), "Female age must be between 21 and 50.", true); return; }
     var maleAgeVal = f.male_age.value ? parseInt(f.male_age.value, 10) : null;
-    if (maleAgeVal != null && (isNaN(maleAgeVal) || maleAgeVal < 21 || maleAgeVal > 60)) { showResult(document.getElementById("result-home-ivf-eligibility"), "Male age must be between 21 and 60.", true); return; }
+    if (maleAgeVal != null && (isNaN(maleAgeVal) || maleAgeVal < 21 || maleAgeVal > 55)) { showResult(document.getElementById("result-home-ivf-eligibility"), "Male age must be between 21 and 55.", true); return; }
+    var homeIvfBmi = calcBMI(f.weight_kg && f.weight_kg.value, f.height_cm && f.height_cm.value);
+    if (homeIvfBmi != null && (homeIvfBmi < 15 || homeIvfBmi > 50)) { showResult(document.getElementById("result-home-ivf-eligibility"), "BMI must be between 15 and 50. Please adjust weight or height.", true); return; }
     var data = {
       female_age: femaleAge,
       sex: f.sex.value,
@@ -874,6 +1004,11 @@
         if (r.ai_insight) html += '<div class="ai-insight"><h4>AI Insight</h4><p>' + escapeHtml(r.ai_insight) + "</p></div>";
         showResult(box, html, false);
       })
-      .catch(function (err) { showResult(box, "Error: " + err.message, true); });
+      .catch(function (err) {
+        var msg = err && err.message ? String(err.message) : "Something went wrong.";
+        if (msg.indexOf("50") !== -1 || /bmi|15|validation/i.test(msg)) msg = "BMI must be between 15 and 50. Please adjust weight or height.";
+        else if (msg === "Failed to fetch") msg = "Could not reach the server. Check your connection, or adjust weight/height so BMI is between 15 and 50 and try again.";
+        showResult(box, msg, true);
+      });
   });
 })();

@@ -32,7 +32,7 @@ async def test_fertility_readiness_ok(client):
 
 @pytest.mark.asyncio
 async def test_fertility_readiness_validation(client):
-    """Fertility readiness rejects invalid age (minimum female age 21)."""
+    """Fertility readiness rejects invalid age (female age 21–50)."""
     response = await client.post(
         f"{BASE}/fertility-readiness",
         json={"age": 15, "menstrual_pattern": "regular"},
@@ -43,6 +43,11 @@ async def test_fertility_readiness_validation(client):
         json={"age": 20, "menstrual_pattern": "regular"},
     )
     assert response20.status_code in (400, 422)
+    response51 = await client.post(
+        f"{BASE}/fertility-readiness",
+        json={"age": 51, "menstrual_pattern": "regular"},
+    )
+    assert response51.status_code in (400, 422)
 
 
 @pytest.mark.asyncio

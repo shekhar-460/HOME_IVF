@@ -53,7 +53,7 @@ Engagement tools use **rule-based logic** and can optionally add short **MedGemm
 | **Knowledge** | Semantic search over JSON FAQs; optional MedGemma-4b-it fallback; IVF-only guardrail (incl. Hinglish “ivf kya hai?”) |
 | **Translation** | googletrans (3.1.0a0): chat en ↔ hi; **page translation** (header dropdown) for 14+ languages |
 | **Professional help** | [HomeIVF](https://homeivf.com/) link and phone in chat suggestions, escalation message, and footer |
-| **Engagement** | Five POST endpoints under `/api/v1/engagement/` (see [Engagement Tools](#engagement-tools)) |
+| **Engagement** | Five POST endpoints under `/api/v1/engagement/` (see [Engagement Tools](#engagement-tools)); age (female 21–50, male 21–55), BMI 15–50, custom diagnosis/treatment validated and explained in result |
 | **Admin** | Analytics, FAQ/Article CRUD, GPU memory cleanup |
 | **Health** | Root, `/health/`, `/health/ready`, `/health/live` for monitoring |
 
@@ -349,11 +349,24 @@ The frontend includes: **Home** (overview and links), **Chat** (send messages, o
 
 All engagement endpoints accept JSON and return JSON. Each supports `language` (`en`/`hi`) and `use_ai_insight` (optional MedGemma snippet).
 
-- **Fertility Readiness** – Inputs: age, medical_history, lifestyle_*, bmi, menstrual_pattern, cycle_length_days, previous_pregnancies, live_births, miscarriages, years_trying. Outputs: risk_score (0–100), risk_level (low/moderate/high), next_steps, guidance_text, ai_insight.
-- **Hormonal Predictor** – Inputs: age, sex (female/male), irregular_cycles, symptoms_*, years_trying, previous_tests_*. Outputs: suggest_amh, suggest_semen_analysis, suggest_specialist, when_to_test, reasoning, ai_insight.
-- **Visual Health** – Inputs: optional image_base64, self_reported_sleep_hours, stress_level, bmi, skin_concerns. Outputs: disclaimer, wellness_indicators, recommendations, ai_insight (non-diagnostic).
-- **Treatment Pathway** – Inputs: age, sex, years_trying, known_diagnosis, previous_treatments, preserving_fertility. Outputs: suggested_pathways, primary_recommendation, reasoning, ai_insight.
-- **Home IVF Eligibility** – Inputs: female_age, male_age, medical_contraindications, has_consulted_specialist, ovarian_reserve_known, semen_analysis_known, stable_relationship_or_single_with_donor. Outputs: eligible, reasons, missing_criteria, prompt_consultation, booking_message, ai_insight.
+### Age and BMI rules
+
+- **Age:** Female 21–50 (Fertility Readiness; Hormonal Predictor and Treatment Pathway when sex is female). Male 21–55 (Hormonal Predictor, Treatment Pathway). Home IVF: female 21–50, male 21–55 (optional).
+- **BMI:** When weight and height are provided, calculated BMI must be in range **15–50** for Fertility Readiness, Visual Health, Treatment Pathway, and Home IVF. Frontend validates before submit and shows an inline hint; API returns a clear error if out of range.
+
+### Tool summaries
+
+- **Fertility Readiness** – Inputs: age (female 21–50), medical_history, lifestyle_*, bmi (optional, 15–50), menstrual_pattern, cycle_length_days, previous_pregnancies, live_births, miscarriages, years_trying. Outputs: risk_score (0–100), risk_level (low/moderate/high), next_steps, guidance_text, ai_insight.
+- **Hormonal Predictor** – Inputs: age (female 21–50, male 21–55), sex (female/male), irregular_cycles, symptoms_*, years_trying, previous_tests_*. Outputs: suggest_amh, suggest_semen_analysis, suggest_specialist, when_to_test, reasoning, ai_insight. When there are no symptoms and AI insight is off, a default suggestions message is still returned.
+- **Visual Health** – Inputs: optional image_base64, self_reported_sleep_hours, stress_level, self_reported_bmi (15–50 when provided), skin_concerns. Outputs: disclaimer, wellness_indicators, recommendations, ai_insight (non-diagnostic).
+- **Treatment Pathway** – Inputs: age (female 21–50, male 21–55), sex, years_trying, known_diagnosis, previous_treatments, preserving_fertility, optional weight_kg/height_cm (BMI 15–50). Diagnosis and previous treatments accept dropdown options or custom “Other” text. **Only listed (allowlist) options are used for the pathway logic.** Custom entries that look nonsensical (e.g. random alphanumeric) trigger a note in **Reasoning** and **AI Insight** asking the user to use the dropdown for accurate guidance. Outputs: suggested_pathways, primary_recommendation, reasoning, ai_insight.
+- **Home IVF Eligibility** – Inputs: female_age (21–50), male_age (21–55, optional), known_diagnosis, previous_treatments (same allowlist/custom behaviour as Treatment Pathway), medical_contraindications, has_consulted_specialist, ovarian_reserve_known, semen_analysis_known, stable_relationship_or_single_with_donor, optional weight_kg/height_cm (BMI 15–50). Outputs: eligible, reasons, missing_criteria, prompt_consultation, booking_message, ai_insight.
+
+### Custom diagnosis / treatment (Treatment Pathway & Home IVF)
+
+- Users can choose from the dropdown or add “Other (not listed)” with free text.
+- **Pathway/eligibility logic** uses only values that match the built-in list (e.g. tubal factor, PCOS, IUI, IVF). Custom “Other” text is not used to compute the result.
+- **Semantic check:** If custom text looks nonsensical (e.g. high digit ratio, tokens with no vowel), the backend adds an explanation in the **final result** (Reasoning or Reasons) and in **AI Insight**, and the frontend can block obviously invalid “Other” entries when adding. No 422 rejection; the result is still returned with the explanatory message.
 
 ---
 

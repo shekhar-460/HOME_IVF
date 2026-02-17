@@ -62,6 +62,7 @@
                     <a href="#medgemma-fallback" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.5 MedGemma fallback</a>
                     <a href="#translation" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">2.6 Translation</a>
                     <a href="#engagement-tools" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Engagement tools</a>
+                    <a href="#engagement-validation" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm pl-6">3.1 Validation & custom entries</a>
                     <a href="#multimodal" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Multimodal</a>
                     <a href="#caching" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Caching & performance</a>
                     <a href="#summary-table" class="block py-2 px-3 rounded hover:bg-gray-800 text-sm">Summary table</a>
@@ -169,7 +170,19 @@
         <section id="engagement-tools" class="mb-16">
             <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-primary-500 pb-2">3. Engagement tools (rule-based + optional AI insight)</h2>
             <p class="text-gray-700 mb-4">The five engagement APIs (fertility readiness, hormonal predictor, visual wellness, treatment pathway, Home IVF eligibility) are implemented as <strong>rule-based</strong> logic in <span class="font-mono text-sm bg-gray-200 px-1 rounded">app/services/engagement_service.py</span>. They take structured inputs (age, medical history, lifestyle, etc.) and return scores, recommendations, and next steps.</p>
-            <p class="text-gray-700">When <code class="bg-gray-200 px-1 rounded text-sm">use_ai_insight=true</code> in the request, the service can add a short <strong>MedGemma-generated</strong> “insight” or explanation (same model as in chat). This is optional and does not replace the rule-based result; it only adds a brief natural-language comment. For <strong>Visual Health</strong>, an optional image can be sent and MedGemma can use it (non-diagnostic wellness awareness only).</p>
+            <p class="text-gray-700 mb-4">When <code class="bg-gray-200 px-1 rounded text-sm">use_ai_insight=true</code> in the request, the service can add a short <strong>MedGemma-generated</strong> “insight” or explanation (same model as in chat). This is optional and does not replace the rule-based result; it only adds a brief natural-language comment. For <strong>Visual Health</strong>, an optional image can be sent and MedGemma can use it (non-diagnostic wellness awareness only).</p>
+            <p class="text-gray-700 mb-4">Input rules are enforced in the API and frontend: <strong>age</strong> (female 21–50, male 21–55 where applicable), and <strong>BMI</strong> 15–50 when weight/height are provided (Fertility Readiness, Visual Health, Treatment Pathway, Home IVF). The <strong>Hormonal Predictor</strong> returns a default suggestions message even when the user has no symptoms and AI insight is off, so the result area is never empty.</p>
+
+            <div id="engagement-validation" class="bg-gray-100 p-6 rounded-lg mt-6">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">3.1 Validation and custom entries (Treatment Pathway & Home IVF)</h3>
+                <p class="text-gray-700 mb-3">Diagnosis and previous treatments can be chosen from a dropdown or entered as custom “Other” text. To keep results reliable:</p>
+                <ul class="list-disc list-inside space-y-2 text-gray-700 mb-3">
+                    <li><strong>Pathway/eligibility logic</strong> uses only values from the built-in list (e.g. tubal factor, PCOS, IUI, IVF). Custom “Other” text is <strong>not</strong> used to compute the recommendation.</li>
+                    <li><strong>Semantic check:</strong> If custom text looks nonsensical (e.g. high digit ratio, tokens with no vowel), the backend does <strong>not</strong> reject the request. Instead it adds an explanation in the <strong>final result</strong> (Reasoning or Reasons) and in <strong>AI Insight</strong>, asking the user to use the dropdown for accurate guidance.</li>
+                    <li>The <strong>frontend</strong> can block obviously invalid “Other” entries when the user clicks Add (same heuristic: nonsense detection), so many invalid inputs never reach the API.</li>
+                </ul>
+                <p class="text-gray-700">This keeps the experience informative without returning 422 for free text; users see a clear note in the result when their custom entries were not used as standard options.</p>
+            </div>
         </section>
 
         <!-- Multimodal -->
@@ -211,7 +224,8 @@
                         <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – FAQ</td><td class="py-3 px-4">SentenceTransformer (embeddings)</td><td class="py-3 px-4">Semantic search over FAQs (multilingual)</td></tr>
                         <tr class="border-b border-gray-200"><td class="py-3 px-4">Chat – fallback</td><td class="py-3 px-4">MedGemma-4b-it</td><td class="py-3 px-4">Generate answer when FAQ has no good match; image+text</td></tr>
                         <tr class="border-b border-gray-200"><td class="py-3 px-4">Translation</td><td class="py-3 px-4">googletrans</td><td class="py-3 px-4">Chat translation (en↔hi), page translation (14+ languages)</td></tr>
-                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Engagement tools</td><td class="py-3 px-4">Rules + optional MedGemma</td><td class="py-3 px-4">Scores/recommendations + short AI “insight”</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Engagement tools</td><td class="py-3 px-4">Rules + optional MedGemma</td><td class="py-3 px-4">Scores/recommendations + short AI “insight”; age/BMI validation</td></tr>
+                        <tr class="border-b border-gray-200"><td class="py-3 px-4">Engagement – custom entries</td><td class="py-3 px-4">Heuristic (allowlist + nonsense check)</td><td class="py-3 px-4">Pathway/eligibility use only listed options; nonsensical “Other” explained in result &amp; AI insight</td></tr>
                     </tbody>
                 </table>
             </div>

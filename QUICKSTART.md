@@ -105,8 +105,17 @@ The chat supports **English** and **Hindi**. Language is auto-detected, includin
 
 ---
 
+## Key validations (engagement tools)
+
+- **Age:** Female 21–50 (Fertility Readiness, Hormonal Predictor, Treatment Pathway, Home IVF); male 21–55 (Hormonal, Treatment Pathway), male 21–55 (Home IVF).
+- **BMI:** Weight/height optional; when provided, calculated BMI must be 15–50 (Fertility Readiness, Visual Health, Treatment Pathway, Home IVF). Frontend shows inline hint and blocks submit if out of range.
+- **Treatment Pathway / Home IVF:** Diagnosis and previous treatments can use “Other (not listed)”. Only options from the dropdown list are used for the pathway/eligibility result. If custom text looks nonsensical, a note appears in the result (Reasoning/Reasons and AI Insight). Frontend can block obviously invalid “Other” entries before add.
+
+---
+
 ## Next steps
 
 - Full setup and configuration: [README.md](README.md)  
 - API and engagement tools: [README.md#api-reference](README.md#api-reference)  
+- Engagement tools (age, BMI, custom entries): [README.md#engagement-tools](README.md#engagement-tools)  
 - Page translation and CORS: [README.md#page-translation--professional-help](README.md#page-translation--professional-help)
