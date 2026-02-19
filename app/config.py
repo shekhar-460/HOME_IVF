@@ -1,9 +1,15 @@
 """
 Configuration settings for AI Engagement Tools (Home IVF)
+Loads from environment and .env in project root (used for all app functionality).
 """
+from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import Field
+
+# .env in project root (parent of app/)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_ENV_FILE = _PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -143,8 +149,10 @@ class Settings(BaseSettings):
     )  # HomeIVF contact number
     
     class Config:
-        env_file = ".env"
+        env_file = str(_ENV_FILE) if _ENV_FILE.exists() else ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
 
 
 # Global settings instance
