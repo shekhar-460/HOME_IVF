@@ -1790,7 +1790,8 @@ class KnowledgeEngine:
         query: str,
         language: str = "en",
         top_k: int = 5,
-        content_types: Optional[List[str]] = None
+        content_types: Optional[List[str]] = None,
+        category: Optional[str] = None,
     ) -> List[Dict]:
         """
         Unified search across FAQs and articles
@@ -1800,6 +1801,7 @@ class KnowledgeEngine:
             language: Language code
             top_k: Number of results
             content_types: List of content types to search ('faq', 'article')
+            category: Optional FAQ category filter (e.g. 'lifestyle', 'process') for topic-specific queries
         
         Returns:
             Combined and ranked results
@@ -1812,7 +1814,7 @@ class KnowledgeEngine:
         all_results = []
         
         if 'faq' in content_types:
-            faq_results = self.search_faqs(query, language, top_k)
+            faq_results = self.search_faqs(query, language, top_k, category=category)
             all_results.extend(faq_results)
         
         if 'article' in content_types:

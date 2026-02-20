@@ -66,10 +66,14 @@ class ResponseGenerator:
         """
         Generate response to user message (with caching for performance)
         """
-        # Check full response cache first (for exact message matches)
-        cache_key = f"response:{hashlib.md5(f'{message}:{language}'.encode()).hexdigest()}"
-        if hasattr(self.knowledge_engine, 'redis_client') and self.knowledge_engine.redis_client:
+        # Build contextualized query early so we can skip cache when context was used
+        history = conversation_context.get('history', [])
+        query_for_search_and_intent = self._get_contextualized_query(message, history, language)
+        use_context = query_for_search_and_intent.strip() != (message or '').strip()
+        # Check full response cache only when query was not contextualized (same response for same message)
+        if not use_context and hasattr(self.knowledge_engine, 'redis_client') and self.knowledge_engine.redis_client:
             try:
+                cache_key = f"response:{hashlib.md5(f'{message}:{language}'.encode()).hexdigest()}"
                 cached = self.knowledge_engine.redis_client.get(cache_key)
                 if cached:
                     logger.debug(f"Full response cache hit: {message[:50]}")
@@ -93,7 +97,9 @@ class ResponseGenerator:
             homeivf_action = self._get_homeivf_link_action(language)
             if not any(action.url == settings.HOMEIVF_WEBSITE_URL for action in suggested_actions):
                 suggested_actions.append(homeivf_action)
-            
+            suggested_actions = self._filter_used_suggestions(
+                suggested_actions, conversation_context.get('history', [])
+            )
             bot_response = BotResponse(
                 text=rejection_text,
                 type='text',
@@ -127,7 +133,7 @@ class ResponseGenerator:
         """
         # Parallelize intent classification and escalation check for faster response
         import asyncio
-        intent_task = self.intent_classifier.classify(message, language, conversation_context)
+        intent_task = self.intent_classifier.classify(query_for_search_and_intent, language, conversation_context)
         # Start escalation check early (will use intent later if needed)
         # Can still detect urgent keywords and emotional indicators without intent
         escalation_task = self.escalation_manager.assess_escalation_need(
@@ -158,11 +164,14 @@ class ResponseGenerator:
             response_text = self._get_template('goodbye', language)
         
         elif intent.startswith('faq_'):
-            # PRIMARY: Search knowledge base (JSON file first, then database)
+            # When user picks a topic phrase (e.g. "Lifestyle & Diet", "जीवनशैली और आहार"), filter by category
+            category_for_search = self._get_category_for_topic_query(message, language)
+            # PRIMARY: Search knowledge base with conversation context for follow-up questions
             search_results = self.knowledge_engine.search(
-                message,
+                query_for_search_and_intent,
                 language=language,
-                top_k=settings.TOP_K_SEARCH_RESULTS
+                top_k=settings.TOP_K_SEARCH_RESULTS,
+                category=category_for_search,
             )
             
             # Check if we have a good match from FAQs
@@ -176,12 +185,19 @@ class ResponseGenerator:
                 category = top_result.get('category') or 'general'
                 response_lang = self._response_language(response_text, language)
                 
-                # Generate follow-up questions (same language as answer)
+                # First: suggestion chips from FAQs (other search results)
+                faq_chips = self._suggested_actions_from_faq_results(
+                    search_results, skip_index=1, max_chips=4
+                )
+                suggested_actions.extend(faq_chips)
+                # Then: template follow-ups, excluding questions already shown as FAQ chips
                 if settings.ENABLE_FOLLOWUPS:
+                    exclude = [a.label for a in faq_chips]
                     followups = self.followup_generator.generate_followups(
                         category=category,
                         language=response_lang,
-                        answer=response_text
+                        answer=response_text,
+                        exclude_questions=exclude if exclude else None
                     )
                     for followup in followups:
                         suggested_actions.append(SuggestedAction(
@@ -208,9 +224,10 @@ class ResponseGenerator:
                         type=result.get('type', 'article')
                     ))
             else:
-                # FALLBACK: Use medgemma if FAQ doesn't have good match
+                # FALLBACK: Use medgemma if FAQ doesn't have good match (with contextualized query)
                 response_text, suggested_actions, related_content = self._handle_medgemma_fallback(
-                    message, intent, language, conversation_context, search_results
+                    message, intent, language, conversation_context, search_results,
+                    contextualized_query=query_for_search_and_intent
                 )
         
         elif intent == 'appointment_schedule':
@@ -239,31 +256,46 @@ class ResponseGenerator:
                 response_text += f"\n\n{self._get_urgent_message(language)}"
         
         else:
-            # Generic response - try FAQ first, then medgemma
-            search_results = self.knowledge_engine.search(message, language, top_k=1)
+            # Generic response - try FAQ first (with context); use category when user picked a topic phrase
+            category_for_search = self._get_category_for_topic_query(message, language)
+            search_results = self.knowledge_engine.search(
+                query_for_search_and_intent,
+                language=language,
+                top_k=settings.TOP_K_SEARCH_RESULTS,
+                category=category_for_search,
+            )
             
             if search_results and search_results[0]['similarity'] >= settings.MIN_CONFIDENCE_SCORE:
                 response_text = search_results[0].get('answer', search_results[0].get('content', ''))
                 category = search_results[0].get('category') or 'general'
                 response_lang = self._response_language(response_text, language)
                 
-                # Add follow-ups and suggestions (same language as answer)
+                # First: suggestion chips from FAQs (other search results)
+                faq_chips = self._suggested_actions_from_faq_results(
+                    search_results, skip_index=1, max_chips=4
+                )
+                suggested_actions.extend(faq_chips)
+                exclude = [a.label for a in faq_chips]
+                # Then: template follow-ups
                 if settings.ENABLE_FOLLOWUPS:
                     followups = self.followup_generator.generate_followups(
                         category=category,
                         language=response_lang,
-                        answer=response_text
+                        answer=response_text,
+                        exclude_questions=exclude if exclude else None
                     )
                     for followup in followups[:2]:  # Limit to 2 for generic responses
                         suggested_actions.append(SuggestedAction(
                             type='quick_reply',
                             label=followup,
-                            action='faq_followup'
+                            action='faq_followup',
+                            data={'question': followup}
                         ))
             else:
                 # Try medgemma as fallback (reuse common method)
                 response_text, new_actions, new_content = self._handle_medgemma_fallback(
-                    message, intent, language, conversation_context, search_results, max_followups=2
+                    message, intent, language, conversation_context, search_results, max_followups=2,
+                    contextualized_query=query_for_search_and_intent
                 )
                 suggested_actions.extend(new_actions)
                 related_content.extend(new_content)
@@ -274,13 +306,18 @@ class ResponseGenerator:
                     else:
                         response_text = self._get_template('no_results', language)
         
+        # Normalize response text (fix list numbering, abbreviations, extra newlines from AI)
+        response_text = self._normalize_response_text(response_text or '')
         # Always add HomeIVF link to Actions section (use answer language when answer is in Hindi)
         effective_language = self._response_language(response_text or '', language)
         homeivf_action = self._get_homeivf_link_action(effective_language)
         # Check if HomeIVF link is not already in suggested_actions
         if not any(action.url == settings.HOMEIVF_WEBSITE_URL for action in suggested_actions):
             suggested_actions.append(homeivf_action)
-        
+        # Remove suggestion chips that the user has already used (appear in conversation history)
+        suggested_actions = self._filter_used_suggestions(
+            suggested_actions, conversation_context.get('history', [])
+        )
         # Create response object (language matches answer so UI is monolingual)
         bot_response = BotResponse(
             text=response_text,
@@ -298,10 +335,9 @@ class ResponseGenerator:
         }
         
         # Cache full response for common queries (cache for 1 hour)
-        # Only cache FAQ-based responses (not Medgemma) for faster retrieval
-        if hasattr(self.knowledge_engine, 'redis_client') and self.knowledge_engine.redis_client:
+        # Only cache when query was not contextualized (context-dependent responses vary by history)
+        if not use_context and hasattr(self.knowledge_engine, 'redis_client') and self.knowledge_engine.redis_client:
             try:
-                # Check if this was a FAQ response (high confidence, not from Medgemma)
                 if confidence >= settings.MIN_CONFIDENCE_SCORE and intent.startswith('faq_'):
                     cache_key = f"response:{hashlib.md5(f'{message}:{language}'.encode()).hexdigest()}"
                     self.knowledge_engine.redis_client.setex(
@@ -336,6 +372,118 @@ class ResponseGenerator:
                 action='visit_homeivf'
             )
     
+    # Map topic/suggestion-chip phrases to FAQ category so the right content is returned
+    TOPIC_PHRASE_TO_FAQ_CATEGORY: Dict[str, str] = {
+        # English
+        'lifestyle': 'lifestyle', 'lifestyle & diet': 'lifestyle', 'lifestyle and diet': 'lifestyle',
+        'lifestyle and preparation': 'lifestyle', 'diet': 'lifestyle', 'preparation for ivf': 'lifestyle',
+        'ivf diet': 'lifestyle', 'ivf lifestyle': 'lifestyle',
+        'ivf process': 'process', 'ivf procedure': 'process', 'ivf procedures': 'process', 'process': 'process',
+        'side effects': 'risks', 'medications': 'risks', 'medication': 'risks',
+        'success rates': 'success_rates', 'costs': 'costs', 'costs & insurance': 'costs', 'costs and insurance': 'costs',
+        'when to call doctor': 'support', 'general information': 'basics',
+        # Hindi
+        'जीवनशैली': 'lifestyle', 'जीवनशैली और आहार': 'lifestyle', 'आहार': 'lifestyle',
+        'आईवीएफ प्रक्रिया': 'process', 'दुष्प्रभाव': 'risks', 'दवाएं': 'risks',
+        'सफलता दर': 'success_rates', 'लागत': 'costs', 'लागत और बीमा': 'costs',
+        'डॉक्टर को कब बुलाएं': 'support', 'सामान्य जानकारी': 'basics', 'तैयारी': 'lifestyle',
+    }
+
+    def _get_category_for_topic_query(self, message: str, language: str) -> Optional[str]:
+        """
+        If the user message is a known topic phrase (e.g. "Lifestyle & Diet", "जीवनशैली और आहार"),
+        return the corresponding FAQ category so search returns the right topic.
+        """
+        if not message or not message.strip():
+            return None
+        msg = message.strip().lower()
+        # Exact match first
+        if msg in self.TOPIC_PHRASE_TO_FAQ_CATEGORY:
+            return self.TOPIC_PHRASE_TO_FAQ_CATEGORY[msg]
+        # Check if any topic phrase is contained (e.g. "Lifestyle & Diet" with extra spaces)
+        for phrase, category in self.TOPIC_PHRASE_TO_FAQ_CATEGORY.items():
+            if phrase in msg:
+                return category
+        return None
+
+    def _is_follow_up_message(self, message: str) -> bool:
+        """True if the message looks like a follow-up (short or continuation phrasing)."""
+        if not message or not message.strip():
+            return False
+        msg = message.strip()
+        word_count = len(msg.split())
+        if word_count <= 4:
+            return True
+        follow_up_phrases = [
+            r'what\s+about', r'how\s+about', r'and\s+the', r'and\s+cost', r'and\s+side\s+effect',
+            r'tell\s+me\s+more', r'also', r'what\s+else', r'what\s+are\s+the',
+            r'cost\s*\??', r'side\s+effect', r'risks?\s*\??', r'success\s+rate',
+            r'how\s+long', r'when\s+should', r'क्या\s+और', r'और\s+क्या', r'बताएं', r'और'
+        ]
+        msg_lower = msg.lower()
+        for pat in follow_up_phrases:
+            if re.search(pat, msg_lower, re.IGNORECASE):
+                return True
+        return False
+
+    def _get_previous_topic_from_history(self, history: List[Dict]) -> Optional[str]:
+        """Return the last user message content from history (previous question/topic)."""
+        if not history:
+            return None
+        for msg in reversed(history):
+            if msg.get('sender') in ('patient', 'user'):
+                content = (msg.get('content') or '').strip()
+                if content:
+                    return content
+        return None
+
+    def _get_contextualized_query(self, message: str, history: List[Dict], language: str) -> str:
+        """
+        Maintain chat context: for follow-up questions, combine with the previous
+        user question so search and intent see the full topic (e.g. "what about side effects?"
+        + previous "What is IVF?" -> "What is IVF what about side effects").
+        """
+        if not message or not message.strip():
+            return message
+        previous_topic = self._get_previous_topic_from_history(history)
+        if not previous_topic or not self._is_follow_up_message(message):
+            return message.strip()
+        # Combine so search/intent get context (previous topic first for better semantic match)
+        combined = f"{previous_topic} {message.strip()}"
+        logger.debug(f"Contextualized query: {combined[:80]}...")
+        return combined
+
+    def _suggested_actions_from_faq_results(
+        self,
+        search_results: List[Dict],
+        skip_index: int = 0,
+        max_chips: int = 4,
+    ) -> List[SuggestedAction]:
+        """
+        Build suggestion chips from FAQ/search results (question or title).
+        Use these first so chips come from the knowledge base before template followups.
+        """
+        if not search_results or max_chips <= 0:
+            return []
+        seen = set()
+        actions = []
+        for i, result in enumerate(search_results):
+            if i == skip_index:
+                continue
+            if len(actions) >= max_chips:
+                break
+            label = (result.get('question') or result.get('title') or '').strip()
+            if not label or label.lower() in seen:
+                continue
+            seen.add(label.lower())
+            actions.append(SuggestedAction(
+                type='quick_reply',
+                label=label,
+                action='faq_followup',
+                data={'question': label}
+            ))
+        return actions
+
     def _get_default_suggestions(self, language: str) -> List[SuggestedAction]:
         """Get default suggested actions (medication excluded - specialised opinion)"""
         if language == 'hi':
@@ -376,6 +524,55 @@ class ResponseGenerator:
             return translations.get(label, translation_service.translate_to_hindi(label))
         return label
     
+    def _filter_used_suggestions(
+        self,
+        suggested_actions: List[SuggestedAction],
+        history: List[Dict],
+    ) -> List[SuggestedAction]:
+        """
+        Remove suggestion chips (quick_reply) whose label or question
+        was already sent by the user in this conversation.
+        """
+        if not history or not suggested_actions:
+            return suggested_actions
+        used_texts = set()
+        for msg in history:
+            if msg.get('sender') in ('patient', 'user'):
+                content = (msg.get('content') or '').strip()
+                if content:
+                    used_texts.add(content.lower())
+        if not used_texts:
+            return suggested_actions
+        filtered = []
+        for action in suggested_actions:
+            if action.type != 'quick_reply':
+                filtered.append(action)
+                continue
+            # Compare label or stored question to what user already sent
+            text = (action.label or '').strip() or (action.data or {}).get('question', '')
+            text = (text or '').strip()
+            if text and text.lower() in used_texts:
+                continue  # skip already-used suggestion
+            filtered.append(action)
+        return filtered
+
+    def _normalize_response_text(self, text: str) -> str:
+        """
+        Normalize AI-generated response text: fix broken list numbering,
+        abbreviations (e.g. / i.e.), and excessive newlines.
+        """
+        if not text or not text.strip():
+            return text
+        # Fix "e. G." / "e. g." -> "e.g." (case-insensitive)
+        text = re.sub(r'\be\.\s*g\.', 'e.g.', text, flags=re.IGNORECASE)
+        # Fix "i. E." / "i. e." -> "i.e."
+        text = re.sub(r'\bi\.\s*e\.', 'i.e.', text, flags=re.IGNORECASE)
+        # Fix numbered list: "N.\\n\\nNext sentence" -> "N. Next sentence" so items read cleanly
+        text = re.sub(r'(\d+)\.\s*\n\s*\n\s*([A-Za-z])', r'\1. \2', text)
+        # Collapse 3+ newlines to double newline
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
+
     def _response_language(self, answer_text: str, requested_language: str) -> str:
         """
         Use answer language for disclaimer and suggestions so the full response is
@@ -460,10 +657,12 @@ class ResponseGenerator:
         language: str,
         conversation_context: Dict,
         search_results: List[Dict],
-        max_followups: int = 3
+        max_followups: int = 3,
+        contextualized_query: Optional[str] = None,
     ) -> Tuple[str, List[SuggestedAction], List[RelatedContent]]:
         """
-        Handle Medgemma fallback logic (consolidated to avoid code duplication)
+        Handle Medgemma fallback logic (consolidated to avoid code duplication).
+        Uses contextualized_query when provided to maintain chat context.
         
         Returns:
             Tuple of (response_text, suggested_actions, related_content)
@@ -481,12 +680,13 @@ class ResponseGenerator:
         suggested_actions = []
         related_content = []
         response_text = None
+        query_for_medgemma = (contextualized_query or message).strip()
         
         # Try Medgemma if enabled (with IVF guardrail)
         if settings.USE_MEDGEMMA:
             try:
-                # Enhance query with IVF context for better results
-                enhanced_query = self.ivf_guardrail.enhance_ivf_context(message, language)
+                # Enhance query with IVF context for better results (use contextualized query when available)
+                enhanced_query = self.ivf_guardrail.enhance_ivf_context(query_for_medgemma, language)
                 image_b64 = conversation_context.get('image_base64')
                 medgemma_answer = self.knowledge_engine.get_answer_from_medgemma(
                     enhanced_query,
@@ -521,12 +721,22 @@ class ResponseGenerator:
                     # Extract category from query/intent for generating follow-ups and suggestions
                     inferred_category = self._infer_category_from_query(message, intent)
                     
-                    # Generate follow-up questions (same language as answer)
+                    # First: suggestion chips from FAQs when we have search results
+                    if search_results:
+                        faq_chips = self._suggested_actions_from_faq_results(
+                            search_results, skip_index=0, max_chips=max_followups
+                        )
+                        suggested_actions.extend(faq_chips)
+                        faq_labels = [a.label for a in faq_chips]
+                    else:
+                        faq_labels = []
+                    # Then: template follow-up questions, excluding FAQ chips already added
                     if settings.ENABLE_FOLLOWUPS:
                         followups = self.followup_generator.generate_followups(
                             category=inferred_category,
                             language=response_lang,
-                            answer=medgemma_answer
+                            answer=medgemma_answer,
+                            exclude_questions=faq_labels if faq_labels else None
                         )
                         for followup in followups[:max_followups]:
                             suggested_actions.append(SuggestedAction(

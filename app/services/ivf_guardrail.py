@@ -105,6 +105,21 @@ class IVFGuardrail:
         'लागत', 'मूल्य', 'खर्च',
     ]
     
+    # IVF topic/category labels (suggestion chips and FAQ categories) – always treat as IVF-related
+    IVF_TOPIC_PHRASES_EN = [
+        'lifestyle', 'lifestyle & diet', 'lifestyle and diet', 'lifestyle and preparation',
+        'ivf process', 'ivf procedure', 'ivf procedures', 'process',
+        'side effects', 'medications', 'medication', 'success rates', 'costs',
+        'costs & insurance', 'costs and insurance', 'when to call doctor',
+        'general information', 'schedule appointment', 'appointment',
+        'diet', 'preparation for ivf', 'ivf diet', 'ivf lifestyle',
+    ]
+    IVF_TOPIC_PHRASES_HI = [
+        'जीवनशैली', 'जीवनशैली और आहार', 'आहार', 'आईवीएफ प्रक्रिया', 'दुष्प्रभाव',
+        'दवाएं', 'सफलता दर', 'लागत', 'लागत और बीमा', 'डॉक्टर को कब बुलाएं',
+        'सामान्य जानकारी', 'अपॉइंटमेंट', 'तैयारी',
+    ]
+
     # Non-IVF topics to detect and reject
     NON_IVF_TOPICS_EN = [
         # General health (not IVF-specific)
@@ -192,6 +207,9 @@ class IVFGuardrail:
         # Create keyword sets for faster lookup
         self.ivf_keywords_en_set = set(kw.lower() for kw in self.IVF_KEYWORDS_EN)
         self.ivf_keywords_hi_set = set(kw.lower() for kw in self.IVF_KEYWORDS_HI)
+        # Topic/category phrases (suggestion chips, FAQ categories) – treated as IVF-related
+        self.ivf_topic_phrases_en_set = set(p.lower() for p in self.IVF_TOPIC_PHRASES_EN)
+        self.ivf_topic_phrases_hi_set = set(p.lower() for p in self.IVF_TOPIC_PHRASES_HI)
     
     def is_ivf_related(
         self,
@@ -214,40 +232,44 @@ class IVFGuardrail:
             - rejection_reason: Reason for rejection if not IVF-related
         """
         query_lower = query.lower().strip()
-        
-        # Check for non-IVF topics first (strict rejection)
+        topic_phrases = self.ivf_topic_phrases_hi_set if language == 'hi' else self.ivf_topic_phrases_en_set
+
+        # Known IVF topic/category labels (e.g. "Lifestyle & Diet", "Side effects") – always allow
+        if query_lower in topic_phrases:
+            return True, 0.7, None
+        if any(phrase in query_lower for phrase in topic_phrases):
+            return True, 0.6, None
+
+        # Check for non-IVF topics (strict rejection)
         non_ivf_patterns = self.non_ivf_patterns_hi if language == 'hi' else self.non_ivf_patterns_en
-        
         for pattern in non_ivf_patterns:
             if pattern.search(query_lower):
-                # Check if it's actually IVF-related despite matching pattern
-                # (e.g., "IVF cost" might match "price" pattern but is IVF-related)
-                if not self._has_ivf_context(query_lower, language):
+                if not self._has_ivf_context(query_lower, language, topic_phrases):
                     logger.debug(f"Non-IVF topic detected: {pattern.pattern}")
                     return False, 0.0, 'not_ivf_related'
-        
+
         # Check for IVF keywords
         ivf_keywords = self.ivf_keywords_hi_set if language == 'hi' else self.ivf_keywords_en_set
         
         # Count IVF keyword matches
         matches = sum(1 for keyword in ivf_keywords if keyword in query_lower)
         
-        # Check conversation context for IVF-related history
+        # Check conversation context: recent IVF keywords or known IVF topic phrases
         context_score = 0.0
         if context and context.get('history'):
-            recent_messages = context['history'][-3:]  # Last 3 messages
-            context_ivf_matches = sum(
-                1 for msg in recent_messages
-                if any(kw in msg.get('content', '').lower() for kw in ivf_keywords)
-            )
-            context_score = min(context_ivf_matches * 0.2, 0.4)  # Max 0.4 from context
+            recent_messages = context['history'][-3:]
+            def _msg_is_ivf_context(content: str) -> bool:
+                c = (content or '').lower()
+                return any(kw in c for kw in ivf_keywords) or any(phrase in c for phrase in topic_phrases)
+            context_ivf_matches = sum(1 for msg in recent_messages if _msg_is_ivf_context(msg.get('content', '')))
+            context_score = min(context_ivf_matches * 0.25, 0.5)  # Max 0.5 from context
         
         # Calculate confidence score
         keyword_score = min(matches * 0.3, 0.6)  # Max 0.6 from keywords
         total_score = keyword_score + context_score
         
-        # Threshold: need at least some IVF-related content
-        if matches > 0 or total_score >= 0.3:
+        # Threshold: keywords in query or enough context (e.g. follow-up after "Lifestyle & Diet")
+        if matches > 0 or total_score >= 0.25:
             return True, min(total_score, 1.0), None
         
         # If no clear IVF connection, check if it's a greeting or appointment
@@ -261,10 +283,16 @@ class IVFGuardrail:
         # Not IVF-related
         return False, 0.0, 'not_ivf_related'
     
-    def _has_ivf_context(self, query_lower: str, language: str) -> bool:
+    def _has_ivf_context(
+        self, query_lower: str, language: str, topic_phrases: Optional[set] = None
+    ) -> bool:
         """Check if query has IVF context despite matching non-IVF pattern"""
         ivf_keywords = self.ivf_keywords_hi_set if language == 'hi' else self.ivf_keywords_en_set
-        return any(kw in query_lower for kw in ivf_keywords)
+        if any(kw in query_lower for kw in ivf_keywords):
+            return True
+        if topic_phrases is None:
+            topic_phrases = self.ivf_topic_phrases_hi_set if language == 'hi' else self.ivf_topic_phrases_en_set
+        return any(phrase in query_lower for phrase in topic_phrases)
     
     def _is_greeting_or_appointment(self, query_lower: str, language: str) -> bool:
         """Check if query is a greeting or appointment request"""
