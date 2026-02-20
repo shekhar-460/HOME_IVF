@@ -596,10 +596,14 @@ class ResponseGenerator:
     def _normalize_response_text(self, text: str) -> str:
         """
         Normalize AI-generated response text: fix broken list numbering,
-        abbreviations (e.g. / i.e.), and excessive newlines.
+        abbreviations (e.g. / i.e.), excessive newlines, and duplicate-word artifacts.
         """
         if not text or not text.strip():
             return text
+        # Fix duplicate-word artifacts from model (e.g. "He He re" -> "Here")
+        text = re.sub(r'\b[Hh]e\s+[Hh]e\s+re\b', 'Here', text, flags=re.IGNORECASE)
+        # Collapse consecutive duplicate words (e.g. "the the" -> "the", "Here Here are" -> "Here are")
+        text = re.sub(r'\b(\w+)(\s+\1)+\b', r'\1', text)
         # Fix "e. G." / "e. g." -> "e.g." (case-insensitive)
         text = re.sub(r'\be\.\s*g\.', 'e.g.', text, flags=re.IGNORECASE)
         # Fix "i. E." / "i. e." -> "i.e."

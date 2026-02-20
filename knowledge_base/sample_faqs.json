@@ -27,6 +27,15 @@
     "tags": ["ivf", "steps", "cycle"]
   },
   {
+    "question": "What is the first step in starting IVF?",
+    "answer": "The first step in starting IVF is usually a consultation with a fertility specialist, along with baseline tests (such as ovarian reserve, hormone profile, and semen analysis). Once you are ready to begin a cycle, the first step of the cycle itself is ovarian stimulation with hormone injections to encourage the ovaries to produce multiple eggs.",
+    "question_hi": "IVF शुरू करने में पहला कदम क्या है?",
+    "answer_hi": "IVF शुरू करने में पहला कदम आमतौर पर एक फर्टिलिटी विशेषज्ञ से परामर्श और कुछ बेसलाइन जांचें (जैसे ओवेरियन रिजर्व, हार्मोन प्रोफाइल और वीर्य जांच) होता है। साइकल शुरू करने के बाद पहला चरण अंडाशय में कई अंडे बनाने के लिए हार्मोन इंजेक्शन से ओवेरियन स्टिम्युलेशन होता है।",
+    "question_hinglish": "IVF start karne ka pehla step kya hai? first step in starting ivf?",
+    "category": "process",
+    "tags": ["ivf", "steps", "first_step", "consultation"]
+  },
+  {
     "question": "How long does an IVF cycle take?",
     "answer": "From the start of ovarian stimulation injections to the pregnancy test, a fresh IVF cycle usually takes around 4–6 weeks. Some planning, investigations, and counselling may be needed before this.",
     "question_hi": "एक IVF साइकल में कितना समय लगता है?",
