@@ -154,7 +154,7 @@ class ResponseGenerator:
         response_text = ""
         suggested_actions = []
         related_content = []
-        
+        current_response_questions: List[str] = []  # FAQ question(s) we're answering – exclude from chips
         # Handle different intents
         if intent == 'greeting':
             response_text = self._get_template('greeting', language)
@@ -174,17 +174,21 @@ class ResponseGenerator:
                 category=category_for_search,
             )
             
-            # Check if we have a good match from FAQs
+            # Check if we have a good match from FAQs, or user explicitly picked a topic (e.g. "Lifestyle & Diet")
             best_similarity = search_results[0]['similarity'] if search_results else 0.0
-            logger.debug(f"FAQ search: {len(search_results)} results (best: {best_similarity:.2f}, threshold: {settings.MIN_CONFIDENCE_SCORE})")
+            use_topic_result = bool(category_for_search and search_results)
+            logger.debug(f"FAQ search: {len(search_results)} results (best: {best_similarity:.2f}, threshold: {settings.MIN_CONFIDENCE_SCORE}, topic_picked: {use_topic_result})")
             
-            if search_results and best_similarity >= settings.MIN_CONFIDENCE_SCORE:
-                # Use FAQ result (optimized path)
+            if search_results and (best_similarity >= settings.MIN_CONFIDENCE_SCORE or use_topic_result):
+                # Use FAQ result (optimized path); when user picked a topic phrase, use top result in that category even if similarity is lower
                 top_result = search_results[0]
                 response_text = top_result.get('answer', top_result.get('content', ''))
                 category = top_result.get('category') or 'general'
                 response_lang = self._response_language(response_text, language)
-                
+                # Don't suggest the question we're already answering
+                for q in (top_result.get('question'), top_result.get('question_hi')):
+                    if q and (q or '').strip():
+                        current_response_questions.append((q or '').strip())
                 # First: suggestion chips from FAQs (other search results)
                 faq_chips = self._suggested_actions_from_faq_results(
                     search_results, skip_index=1, max_chips=4
@@ -265,11 +269,15 @@ class ResponseGenerator:
                 category=category_for_search,
             )
             
-            if search_results and search_results[0]['similarity'] >= settings.MIN_CONFIDENCE_SCORE:
-                response_text = search_results[0].get('answer', search_results[0].get('content', ''))
-                category = search_results[0].get('category') or 'general'
+            use_topic_result = bool(category_for_search and search_results)
+            if search_results and (search_results[0]['similarity'] >= settings.MIN_CONFIDENCE_SCORE or use_topic_result):
+                top_result = search_results[0]
+                response_text = top_result.get('answer', top_result.get('content', ''))
+                category = top_result.get('category') or 'general'
                 response_lang = self._response_language(response_text, language)
-                
+                for q in (top_result.get('question'), top_result.get('question_hi')):
+                    if q and (q or '').strip():
+                        current_response_questions.append((q or '').strip())
                 # First: suggestion chips from FAQs (other search results)
                 faq_chips = self._suggested_actions_from_faq_results(
                     search_results, skip_index=1, max_chips=4
@@ -314,9 +322,11 @@ class ResponseGenerator:
         # Check if HomeIVF link is not already in suggested_actions
         if not any(action.url == settings.HOMEIVF_WEBSITE_URL for action in suggested_actions):
             suggested_actions.append(homeivf_action)
-        # Remove suggestion chips that the user has already used (appear in conversation history)
+        # Remove chips already used by user or that we're already answering
         suggested_actions = self._filter_used_suggestions(
-            suggested_actions, conversation_context.get('history', [])
+            suggested_actions,
+            conversation_context.get('history', []),
+            current_response_questions=current_response_questions,
         )
         # Create response object (language matches answer so UI is monolingual)
         bot_response = BotResponse(
@@ -382,8 +392,12 @@ class ResponseGenerator:
         'side effects': 'risks', 'medications': 'risks', 'medication': 'risks',
         'success rates': 'success_rates', 'costs': 'costs', 'costs & insurance': 'costs', 'costs and insurance': 'costs',
         'when to call doctor': 'support', 'general information': 'basics',
+        # "What is IVF?" -> basics (so we return the definition, not cycle steps)
+        'what is ivf': 'basics', 'ivf kya hai': 'basics', 'ivf kya hota hai': 'basics',
+        'what is ivf?': 'basics', 'ivf kya hai?': 'basics',
         # Hindi
         'जीवनशैली': 'lifestyle', 'जीवनशैली और आहार': 'lifestyle', 'आहार': 'lifestyle',
+        'आईवीएफ क्या है': 'basics', 'आईवीएफ क्या है?': 'basics',
         'आईवीएफ प्रक्रिया': 'process', 'दुष्प्रभाव': 'risks', 'दवाएं': 'risks',
         'सफलता दर': 'success_rates', 'लागत': 'costs', 'लागत और बीमा': 'costs',
         'डॉक्टर को कब बुलाएं': 'support', 'सामान्य जानकारी': 'basics', 'तैयारी': 'lifestyle',
@@ -528,31 +542,54 @@ class ResponseGenerator:
         self,
         suggested_actions: List[SuggestedAction],
         history: List[Dict],
+        current_response_questions: Optional[List[str]] = None,
     ) -> List[SuggestedAction]:
         """
-        Remove suggestion chips (quick_reply) whose label or question
-        was already sent by the user in this conversation.
+        Remove suggestion chips (quick_reply) that: (1) the user already asked,
+        (2) we're already answering in this response, or (3) are equivalent (e.g. "ivf kya hai?" vs "आईवीएफ क्या है?").
         """
-        if not history or not suggested_actions:
+        if not suggested_actions:
             return suggested_actions
         used_texts = set()
-        for msg in history:
+        # User messages from history (exact match)
+        for msg in history or []:
             if msg.get('sender') in ('patient', 'user'):
                 content = (msg.get('content') or '').strip()
                 if content:
                     used_texts.add(content.lower())
-        if not used_texts:
-            return suggested_actions
+        # Questions we're answering in this response – don't suggest them again
+        for q in current_response_questions or []:
+            if q:
+                used_texts.add(q.lower())
+        # Build English-normalized set so "ivf kya hai?" and "आईवीएफ क्या है?" match
+        used_english = set()
+        for raw in used_texts:
+            try:
+                eng = translation_service.translate_to_english(raw).strip().lower()
+                if eng:
+                    used_english.add(eng)
+            except Exception:
+                pass
         filtered = []
         for action in suggested_actions:
             if action.type != 'quick_reply':
                 filtered.append(action)
                 continue
-            # Compare label or stored question to what user already sent
             text = (action.label or '').strip() or (action.data or {}).get('question', '')
             text = (text or '').strip()
-            if text and text.lower() in used_texts:
-                continue  # skip already-used suggestion
+            if not text:
+                filtered.append(action)
+                continue
+            text_lower = text.lower()
+            if text_lower in used_texts:
+                continue
+            # Same question in different script? Compare via English
+            try:
+                text_eng = translation_service.translate_to_english(text).strip().lower()
+                if text_eng and (text_eng in used_texts or text_eng in used_english):
+                    continue
+            except Exception:
+                pass
             filtered.append(action)
         return filtered
 

@@ -1455,6 +1455,20 @@ class KnowledgeEngine:
         if re.search(r"\bivf\b", q, re.IGNORECASE):
             return q + " आईवीएफ"
         return query
+
+    @staticmethod
+    def _normalize_for_faq_match(s: str) -> str:
+        """
+        Normalize a string for exact/near-exact FAQ question matching.
+        Lowercase, strip, collapse spaces, remove trailing punctuation so
+        "What is IVF ?" matches FAQ "What is IVF?".
+        """
+        if not s or not isinstance(s, str):
+            return ""
+        t = s.strip().lower()
+        t = re.sub(r"\s+", " ", t)
+        t = re.sub(r"[.?!\s]+$", "", t)
+        return t.strip()
     
     def _get_cached_response(self, cache_key: str) -> Optional[List[Dict]]:
         """Get cached response from Redis"""
@@ -1516,7 +1530,51 @@ class KnowledgeEngine:
                 return cached_results[:top_k]
         
         results = []
-        
+        exact_match = None
+
+        # EXACT MATCH: Prefer FAQ when user query matches an FAQ question (normalized)
+        # e.g. "What is IVF ?" -> "What is IVF?" FAQ so we return the FAQ answer, not AI
+        if self.faqs_data and query and query.strip():
+            normalized_query = self._normalize_for_faq_match(query)
+            if normalized_query:
+                for faq_data in self.faqs_data:
+                    if category and faq_data.get('category') != category:
+                        continue
+                    if language == 'hi':
+                        question = faq_data.get('question_hi', faq_data.get('question', ''))
+                        answer = faq_data.get('answer_hi', faq_data.get('answer', ''))
+                        question_hinglish = (faq_data.get('question_hinglish') or '').strip()
+                        candidates = [question]
+                        if question_hinglish:
+                            candidates.extend(p.strip() for p in question_hinglish.split(',') if p.strip())
+                    else:
+                        question = faq_data.get('question', '')
+                        answer = faq_data.get('answer', '')
+                        candidates = [question]
+                        for p in (faq_data.get('question_hinglish') or '').split(','):
+                            if p.strip():
+                                candidates.append(p.strip())
+                    if not question or not answer:
+                        continue
+                    for c in candidates:
+                        if not c:
+                            continue
+                        if self._normalize_for_faq_match(c) == normalized_query:
+                            exact_match = {
+                                'faq_id': f"json_{hash(faq_data.get('question', ''))}",
+                                'question': question,
+                                'answer': answer,
+                                'category': faq_data.get('category'),
+                                'tags': faq_data.get('tags', []),
+                                'similarity': 1.0,
+                                'type': 'faq',
+                                'source': 'json'
+                            }
+                            logger.debug(f"FAQ exact question match: '{query.strip()}' -> '{question}'")
+                            break
+                    if exact_match:
+                        break
+
         # PRIMARY: Search in JSON file (optimized with batch embedding)
         if self.faqs_data:
             query_embedding = self._get_embedding(query)
@@ -1585,6 +1643,11 @@ class KnowledgeEngine:
                                 'type': 'faq',
                                 'source': 'json'
                             })
+        
+        # Prefer exact question match: put first and drop duplicate from semantic results (or use only exact if no embedding)
+        if exact_match:
+            results = [r for r in results if r['faq_id'] != exact_match['faq_id']]
+            results.insert(0, exact_match)
         
         # SECONDARY: Search in database if we need more results
         if len(results) < top_k:

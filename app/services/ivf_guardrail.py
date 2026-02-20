@@ -300,7 +300,7 @@ class IVFGuardrail:
             greetings = ['नमस्ते', 'हैलो', 'नमस्कार', 'धन्यवाद', 'शुक्रिया']
             appointments = ['अपॉइंटमेंट', 'समय', 'स्लॉट', 'बुक']
         else:
-            greetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'thanks', 'thank you']
+            greetings = ['hello', 'hi', 'hey', 'namaste', 'namaskar', 'good morning', 'good afternoon', 'good evening', 'thanks', 'thank you']
             appointments = ['appointment', 'schedule', 'book', 'slot', 'available']
         
         all_terms = greetings + appointments

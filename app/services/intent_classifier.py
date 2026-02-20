@@ -46,7 +46,8 @@ class IntentClassifier:
             r'clarify', r'detailed'
         ],
         'greeting': [
-            r'hello', r'hi', r'hey', r'good morning', r'good afternoon', r'good evening'
+            r'hello', r'hi', r'hey', r'namaste', r'namaskar',
+            r'good morning', r'good afternoon', r'good evening'
         ],
         'goodbye': [
             r'bye', r'goodbye', r'thank you', r'thanks', r'see you'
@@ -81,7 +82,7 @@ class IntentClassifier:
             r'जटिल', r'उलझन', r'समझ नहीं आ रहा', r'मदद चाहिए'
         ],
         'greeting': [
-            r'नमस्ते', r'हैलो', r'नमस्कार'
+            r'नमस्ते', r'नमस्कार', r'हैलो', r'namaste', r'namaskar'
         ],
         'goodbye': [
             r'धन्यवाद', r'शुक्रिया', r'अलविदा'
