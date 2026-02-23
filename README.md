@@ -165,7 +165,6 @@ HOME IVF/
 ├── frontend/                     # Static UI: index.html, app.js, styles.css (chat, tools, translate dropdown)
 ├── knowledge_base/               # Optional: sample_faqs.json (FAQ source if present)
 ├── tests/
-│   ├── README.md                 # Test overview and how to run
 │   ├── conftest.py               # Fixtures, engagement dependency override
 │   ├── test_health.py
 │   ├── test_engagement_api.py
@@ -222,7 +221,7 @@ HOME IVF/
    Create a PostgreSQL database and set `DATABASE_URL` (e.g. `postgresql://user:pass@localhost:5433/patient_bot`). On startup, `init_db()` creates tables from `app.database.models`.
 
 6. **Optional: MedGemma**  
-   Place MedGemma under `app/models/medgemma-4b-it/` or set `MEDGEMMA_MODEL_PATH`. Set `USE_LOCAL_MEDGEMMA=false` to load from Hugging Face.
+   Place MedGemma under `app/models/medgemma-4b-it/` or set `MEDGEMMA_MODEL_PATH`. Set `USE_LOCAL_MEDGEMMA=false` to load from Hugging Face (uses `MEDGEMMA_MODEL_NAME`, default `google/medgemma-4b-it`).
 
 7. **FAQ data / knowledge base**  
    A starter JSON knowledge base is provided at `knowledge_base/sample_faqs.json` with bilingual (en/hi) IVF FAQs. Edit or extend this file to customise answers. The `KnowledgeEngine` loads this file as the **primary** source for FAQ answers before falling back to the database or MedGemma.
@@ -231,7 +230,7 @@ HOME IVF/
 
 ## Configuration
 
-Settings are defined in `app/config.py` and loaded from the environment or `.env`. Key variables:
+Settings are defined in `app/config.py` and loaded from the environment or `.env`. Key variables (see `app/config.py` for the full list, including JWT, Redis, Pinecone, rate limiting, etc.):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -241,28 +240,30 @@ Settings are defined in `app/config.py` and loaded from the environment or `.env
 | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5433/patient_bot` | PostgreSQL URL |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis URL (cache) |
 | `USE_MEDGEMMA` | `True` | Use MedGemma for chat fallback and engagement insights |
+| `MEDGEMMA_MODEL_NAME` | `google/medgemma-4b-it` | Hugging Face model ID (when not using local) |
 | `MEDGEMMA_MODEL_PATH` | `app/models/medgemma-4b-it` | Local MedGemma path |
 | `USE_LOCAL_MEDGEMMA` | `True` | Use local model; if False, load from Hugging Face |
 | `EMBEDDING_MODEL` | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | FAQ embeddings |
 | `SUPPORTED_LANGUAGES` | `["en", "hi"]` | Chat language codes |
 | `HOMEIVF_WEBSITE_URL` | `https://homeivf.com/` | HomeIVF professional help link |
 | `HOMEIVF_PHONE` | `+91-9958885250` | HomeIVF contact number (escalation message, etc.) |
+| `FRONTEND_PORT` | `3000` | Frontend server port (used by `start.sh` only; set in `.env`) |
 
 ---
 
 ## Running the Application
 
 **Option 1 – One-command script (recommended)**  
-From the project root, run `start.sh`. It checks Python 3.10+, creates/uses `.venv`, installs or updates dependencies from `requirements.txt`, optionally loads `.env`, checks PostgreSQL/Redis (optional), starts the **backend** (Uvicorn on `0.0.0.0:8000`), then starts the **frontend** (Python http.server on `0.0.0.0:3000`). You can run it from any directory; it changes into the project root automatically. Press Ctrl+C to stop both.
+From the project root, run `start.sh`. It checks Python 3.10+, creates/uses `.venv`, installs or updates dependencies from `requirements.txt`, optionally loads `.env`, checks PostgreSQL/Redis (optional), starts the **backend** (Uvicorn on `HOST:PORT`), then the **frontend** (Python http.server on `FRONTEND_PORT`). You can run it from any directory; it changes into the project root automatically. Press Ctrl+C to stop both.
 
 ```bash
 ./start.sh
 ```
 
-- **Backend:** http://localhost:8000 (and http://*your-ip*:8000 from other devices)  
+- **Backend:** http://localhost:8000 (or `HOST:PORT` from `.env`; use http://*your-ip*:*port* from other devices)  
 - **API docs (Swagger):** http://localhost:8000/docs  
 - **ReDoc:** http://localhost:8000/redoc  
-- **Frontend:** http://localhost:3000 (and http://*your-ip*:3000 from other devices)
+- **Frontend:** http://localhost:3000 (or `FRONTEND_PORT` from `.env`; use http://*your-ip*:*port* from other devices)
 
 **Option 2 – Manual**  
 From the project root with the virtualenv activated:
@@ -416,7 +417,7 @@ Tests live under `tests/` and use pytest. Engagement tests override the engageme
 pip install -r requirements.txt
 pytest tests/ -v
 ```
-(If you need test-only deps: `pytest`, `pytest-asyncio`, `httpx`; see `tests/conftest.py`.)
+(Test deps `pytest`, `pytest-asyncio` are in `requirements.txt`; see `tests/conftest.py` for fixtures.)
 
 **Coverage:** Health (root, /health/, /health/ready, /health/live, favicon); all five engagement POSTs (status and response shape); engagement service unit tests; Pydantic schema validation. Chat and admin routes are not covered (they require a DB session).
 

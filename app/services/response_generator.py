@@ -387,6 +387,7 @@ class ResponseGenerator:
         # English
         'lifestyle': 'lifestyle', 'lifestyle & diet': 'lifestyle', 'lifestyle and diet': 'lifestyle',
         'lifestyle and preparation': 'lifestyle', 'diet': 'lifestyle', 'preparation for ivf': 'lifestyle',
+        'how do i prepare for ivf treatment': 'lifestyle', 'how do i prepare for ivf': 'lifestyle',
         'ivf diet': 'lifestyle', 'ivf lifestyle': 'lifestyle',
         'ivf process': 'process', 'ivf procedure': 'process', 'ivf procedures': 'process', 'process': 'process',
         'side effects': 'risks', 'medications': 'risks', 'medication': 'risks',

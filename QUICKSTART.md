@@ -54,7 +54,7 @@ From the project root:
 ./start.sh
 ```
 
-This script checks Python 3.10+, creates/uses `.venv`, installs dependencies if needed, loads `.env` if present, starts the **backend** on **http://0.0.0.0:8000**, then the **frontend** on **http://0.0.0.0:3000**. Press **Ctrl+C** to stop both.
+This script checks Python 3.10+, creates/uses `.venv`, installs dependencies if needed, loads `.env` if present, starts the **backend** on **http://HOST:PORT** (default `0.0.0.0:8000`), then the **frontend** on **http://0.0.0.0:FRONTEND_PORT** (default `3000`). Press **Ctrl+C** to stop both. Set `PORT`, `HOST`, or `FRONTEND_PORT` in `.env` to override.
 
 - **Local:** http://localhost:3000 (frontend), http://localhost:8000 (API, docs at /docs)
 - **From another device:** http://*your-machine-ip*:3000 (frontend); the UI will call http://*your-machine-ip*:8000 for the API. Use **http://** (not https).
@@ -87,15 +87,17 @@ Open **http://localhost:3000** (or http://*your-ip*:3000). The frontend uses **h
   `<script>window.API_PORT = "8006";</script>`  
   or  
   `<script>window.API_BASE = "http://localhost:8006";</script>`
+- **Different frontend port:** Set `FRONTEND_PORT=4200` in `.env` (used by `start.sh`). For manual run: `python3 -m http.server 4200 --bind 0.0.0.0`.
 
 ---
 
 ## Run tests
 
 ```bash
-pip install pytest pytest-asyncio httpx
+pip install -r requirements.txt
 pytest tests/ -v
 ```
+(Pytest and pytest-asyncio are in `requirements.txt`.)
 
 ---
 

@@ -23,7 +23,7 @@ async def test_fertility_readiness_ok(client):
     data = response.json()
     assert "risk_score" in data
     assert "risk_level" in data
-    assert data["risk_level"] in ("low", "moderate", "high")
+    assert data["risk_level"] in ("low", "moderate", "needs urgent attention", "high")
     assert 0 <= data["risk_score"] <= 100
     assert "next_steps" in data
     assert isinstance(data["next_steps"], list)

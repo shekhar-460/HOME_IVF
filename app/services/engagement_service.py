@@ -82,6 +82,8 @@ MEDICAL_HISTORY_CANONICAL: List[Tuple[str, Set[str]]] = [
     ("High blood pressure", {"high blood pressure", "hypertension", "hypertensive", "high bp", "elevated blood pressure", "htn"}),
     ("Prior pelvic/fertility surgery", {"prior surgery", "surgery", "pelvic surgery", "fertility surgery", "laparoscopy", "laparoscopic"}),
     ("Tubal factor", {"tubal", "tubal factor", "blocked tubes", "tubal blockage", "fallopian"}),
+    ("Low AMH", {"low amh", "low ovarian reserve", "reduced amh", "amh low", "diminished amh"}),
+    ("High AMH", {"high amh", "elevated amh", "amh high", "increased amh"}),
 ]
 
 
@@ -200,38 +202,73 @@ class EngagementService:
             reasons.append("Trying for 1+ year suggests considering basic fertility workup.")
 
         risk_score = min(100.0, score)
-        if risk_score < 30:
+        if risk_score <= 40:
             risk_level = "low"
             next_steps = [
                 "Maintain healthy lifestyle and track cycles.",
                 "Consider preconception checkup if planning pregnancy.",
             ]
-        elif risk_score < 60:
+        elif risk_score <= 75:
             risk_level = "moderate"
             next_steps = [
                 "Discuss with your doctor or a fertility specialist.",
                 "Consider basic screening (AMH, semen analysis) if trying to conceive.",
             ]
+        elif risk_score <= 90:
+            risk_level = "needs urgent attention"
+            next_steps = [
+                "Book a consultation with a fertility specialist as soon as possible.",
+                "Bring your history and previous reports to discuss next steps.",
+            ]
         else:
             risk_level = "high"
             next_steps = [
-                "Book a consultation with a fertility specialist.",
-                "Consider AMH and/or semen analysis as advised.",
+                "Seek an urgent consultation with a fertility specialist.",
+                "Discuss AMH, semen analysis, and other investigations as advised.",
             ]
 
+        if risk_level == "needs urgent attention":
+            level_phrase = "in a range that needs urgent attention"
+        else:
+            level_phrase = risk_level
+
         guidance_text = (
-            f"Based on the inputs provided, your preliminary fertility risk is {risk_level}. "
+            f"Based on the inputs provided, your preliminary fertility risk is {level_phrase}. "
             "This is not a diagnosis. A doctor can give you personalized advice."
         )
 
         ai_insight = None
         if req.use_ai_insight and self.knowledge_engine:
+            # Build rich context so MedGemma can explain the recommendation clearly
+            context_parts = [
+                f"Fertility Readiness result: risk score {risk_score:.0f} (scale 0–100), risk level: {risk_level}.",
+                f"Profile: age {req.age}, menstrual pattern {req.menstrual_pattern.value}.",
+            ]
+            if recognized_conditions:
+                context_parts.append(f"Medical history (used in score): {', '.join(sorted(recognized_conditions))}.")
+            if req.lifestyle_smoking:
+                context_parts.append("Smoking: yes.")
+            if req.lifestyle_alcohol and req.lifestyle_alcohol != "none":
+                context_parts.append(f"Alcohol: {req.lifestyle_alcohol}.")
+            if req.bmi is not None and (req.bmi < 18.5 or req.bmi > 30):
+                context_parts.append(f"BMI: {req.bmi:.1f} (outside 18.5–30 range).")
+            if req.miscarriages > 0:
+                context_parts.append(f"Miscarriages: {req.miscarriages}.")
+            if req.years_trying is not None and req.years_trying >= 1:
+                context_parts.append(f"Years trying to conceive: {req.years_trying}.")
+            context_parts.append("Factors that contributed to this score:")
+            context_parts.extend(f"• {r}" for r in reasons[:10])  # cap to avoid token overflow
+            context_parts.append("Recommended next steps:")
+            context_parts.extend(f"• {s}" for s in next_steps)
+            context_str = "\n".join(context_parts)
+
             q = (
-                f"Brief 2–3 sentence fertility awareness advice for a {req.age}-year-old with "
-                f"{risk_level} preliminary risk, menstrual pattern {req.menstrual_pattern.value}. "
-                "Focus on next steps and reassurance. IVF/fertility context only."
+                "In 3–4 short sentences, explain why this fertility readiness result was given and what it means in plain language. "
+                "Mention which factors from the context most influenced the score, what the risk level implies for the person, "
+                "and how they can use the recommended next steps. Be supportive and clear; do not give a diagnosis. "
+                "IVF/fertility awareness context only."
             )
-            ai_insight = self._get_ai_insight(q, req.language or "en")
+            ai_insight = self._get_ai_insight(q, req.language or "en", context=context_str)
 
         return FertilityReadinessResponse(
             risk_score=risk_score,

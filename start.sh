@@ -85,7 +85,7 @@ check_port() {
 check_port "localhost" "5433" "PostgreSQL"
 check_port "localhost" "6379" "Redis" || true
 
-# --- Port from env or default ---
+# --- Port from .env (loaded above) or default ---
 PORT="${PORT:-8000}"
 HOST="${HOST:-0.0.0.0}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"

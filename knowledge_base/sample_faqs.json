@@ -99,6 +99,15 @@
     "tags": ["semen_analysis", "male_factor"]
   },
   {
+    "question": "How do I prepare for IVF treatment?",
+    "answer": "To prepare for IVF: 1) Book a consultation with a fertility specialist and complete baseline tests (ovarian reserve, hormone profile, semen analysis, infection screening). 2) Adopt healthy habits: aim for a healthy weight, eat a balanced diet, take folic acid if advised, avoid smoking and limit alcohol, and get regular moderate exercise. 3) Plan timing and support: discuss your schedule with your clinic, arrange for rest around egg retrieval and transfer, and consider counselling or support if you feel anxious. Your clinic will give you a personalised plan.",
+    "question_hi": "IVF उपचार की तैयारी कैसे करें?",
+    "answer_hi": "IVF की तैयारी के लिए: 1) फर्टिलिटी विशेषज्ञ से परामर्श लें और बेसलाइन जांचें करवाएं (ओवेरियन रिजर्व, हार्मोन प्रोफाइल, वीर्य जांच, संक्रमण स्क्रीनिंग)। 2) स्वस्थ आदतें अपनाएं: संतुलित वजन, पौष्टिक आहार, सलाह अनुसार फॉलिक एसिड, धूम्रपान न करें और शराब सीमित करें, नियमित हल्का व्यायाम। 3) समय और सहायता की योजना बनाएं: क्लिनिक के साथ अपॉइंटमेंट तय करें, एग रिट्रीवल और ट्रांसफर के आसपास आराम रखें, और जरूरत हो तो काउंसलिंग लें। आपका क्लिनिक व्यक्तिगत योजना देगा।",
+    "question_hinglish": "How do I prepare for IVF treatment? ivf preparation? prepare for ivf? ivf ki taiyari kaise karein?",
+    "category": "lifestyle",
+    "tags": ["preparation", "lifestyle", "consultation", "tests", "diet"]
+  },
+  {
     "question": "What lifestyle changes can improve fertility?",
     "answer": "Maintaining a healthy weight, stopping smoking, limiting alcohol, regular moderate exercise, managing stress, and getting adequate sleep can all support fertility. These changes cannot guarantee pregnancy but improve overall reproductive health.",
     "question_hi": "फर्टिलिटी बेहतर करने के लिए कौन से जीवनशैली बदलाव मददगार हो सकते हैं?",

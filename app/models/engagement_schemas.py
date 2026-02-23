@@ -95,7 +95,10 @@ class FertilityReadinessRequest(BaseModel):
 class FertilityReadinessResponse(BaseModel):
     """Fertility readiness result."""
     risk_score: float = Field(..., ge=0, le=100, description="0=lower risk, 100=higher risk")
-    risk_level: str = Field(..., description="low / moderate / high")
+    risk_level: str = Field(
+        ...,
+        description="categorical risk band: low / moderate / needs urgent attention / high",
+    )
     next_steps: List[str] = Field(default_factory=list)
     guidance_text: str = Field(default="")
     ai_insight: Optional[str] = None

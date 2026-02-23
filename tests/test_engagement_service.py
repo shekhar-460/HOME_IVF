@@ -45,7 +45,7 @@ class TestFertilityReadiness:
         )
         res = service.fertility_readiness(req)
         assert res.risk_level == "high"
-        assert res.risk_score >= 60
+        assert res.risk_score > 90
         assert any("specialist" in s.lower() for s in res.next_steps)
         assert "PCOS" in (res.medical_history_recognized or [])
         assert "Endometriosis" in (res.medical_history_recognized or [])
