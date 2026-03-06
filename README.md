@@ -7,6 +7,7 @@ A **FastAPI** application for multilingual IVF patient education and pre-consult
 ## Table of Contents
 
 - [Quick Start](QUICKSTART.md) – minimal steps to run the app
+- [API Documentation](app/api/API_DOCUMENTATION.md) – detailed REST/WebSocket API reference
 - [Overview](#overview)
 - [Features](#features)
 - [Architecture](#architecture)
@@ -136,12 +137,14 @@ HOME IVF/
 ├── app/
 │   ├── main.py                    # FastAPI app, CORS (allow *), ensure_cors_headers, routers, startup/shutdown, GPU cleanup
 │   ├── config.py                  # Pydantic Settings (env / .env)
-│   ├── api/routes/
-│   │   ├── health.py              # GET /health/, /health/ready, /health/live
-│   │   ├── chat.py                # POST /api/v1/chat/message, /conversation; GET /conversation/{id}; POST /escalate; WS /ws/{id}
-│   │   ├── engagement.py          # POST /api/v1/engagement/* (5 tools)
-│   │   ├── translate.py           # GET /api/v1/translate/languages; POST /api/v1/translate (page translation)
-│   │   └── admin.py               # GET /api/v1/admin/analytics; POST /api/v1/admin/faq, /article; POST /api/v1/admin/cleanup-gpu
+│   ├── api/
+│   │   ├── API_DOCUMENTATION.md    # Detailed REST/WebSocket API reference
+│   │   └── routes/
+│   │       ├── health.py          # GET /health/, /health/ready, /health/live
+│   │       ├── chat.py            # POST /api/v1/chat/message, /conversation; GET /conversation/{id}; POST /escalate; WS /ws/{id}
+│   │       ├── engagement.py      # POST /api/v1/engagement/* (5 tools)
+│   │       ├── translate.py       # GET /api/v1/translate/languages; POST /api/v1/translate (page translation)
+│   │       └── admin.py          # GET /api/v1/admin/analytics; POST /api/v1/admin/faq, /article; POST /api/v1/admin/gpu/cleanup
 │   ├── database/
 │   │   ├── connection.py         # Engine, SessionLocal, get_db, init_db
 │   │   └── models.py              # Conversation, Message, FAQ, Article, Escalation (PostgreSQL)
@@ -297,6 +300,8 @@ The frontend includes: **Home** (overview and links), **Chat** (send messages, o
 
 ## API Reference
 
+For detailed request/response schemas, status notes, and file layout, see **[API Documentation](app/api/API_DOCUMENTATION.md)**.
+
 ### Root & Health
 
 | Method | Path | Description |
@@ -325,7 +330,7 @@ The frontend includes: **Home** (overview and links), **Chat** (send messages, o
 | POST | `/faq` | Create FAQ |
 | PUT | `/faq/{faq_id}` | Update FAQ |
 | POST | `/article` | Create article |
-| POST | `/cleanup-gpu` | Trigger MedGemma GPU memory cleanup |
+| POST | `/gpu/cleanup` | Trigger MedGemma GPU memory cleanup |
 
 ### Engagement (`/api/v1/engagement`)
 

@@ -117,7 +117,8 @@ The chat supports **English** and **Hindi**. Language is auto-detected, includin
 
 ## Next steps
 
-- Full setup and configuration: [README.md](README.md)  
-- API and engagement tools: [README.md#api-reference](README.md#api-reference)  
-- Engagement tools (age, BMI, custom entries): [README.md#engagement-tools](README.md#engagement-tools)  
+- Full setup and configuration: [README.md](README.md)
+- **API reference (detailed):** [app/api/API_DOCUMENTATION.md](app/api/API_DOCUMENTATION.md)
+- API and engagement tools: [README.md#api-reference](README.md#api-reference)
+- Engagement tools (age, BMI, custom entries): [README.md#engagement-tools](README.md#engagement-tools)
 - Page translation and CORS: [README.md#page-translation--professional-help](README.md#page-translation--professional-help)
